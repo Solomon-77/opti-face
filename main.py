@@ -2,9 +2,11 @@ from retinaface import RetinaFace
 import cv2
 import matplotlib.pyplot as plt
 
+# path
 occluded_image = "./test_images/with_occlusion/terrorists2.jpg"
 unoccluded_image = "./test_images/without_occlusion/image1.jpg"
 
+# Load the image
 image = cv2.imread(occluded_image)
 image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
