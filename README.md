@@ -1,6 +1,6 @@
-# Parti-Face [PROVISIONAL]
+# Opti-Face [PROVISIONAL]
 
-Parti-Face, short for "Partial Face," is a hybrid machine learning model designed to enhance face detection, particularly for occluded faces. By integrating the RetinaFace architecture with Generative Adversarial Networks (GANs) and other techniques, this project aims to push the boundaries of existing benchmarks in face detection.
+Opti-Face, short for "Optimal Face," is a hybrid machine learning model designed to enhance face recognition, even on low hardware configurations. This project integrates the ULFG architecture for face detection, along with advanced upscaling techniques and recognition algorithms. By leveraging these components, OptiFace aims to achieve robust face recognition capabilities under various conditions.
 
 ## Installation
 
