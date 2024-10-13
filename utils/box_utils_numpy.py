@@ -40,17 +40,16 @@ def corner_form_to_center_form(boxes):
 def hard_nms(box_scores, iou_threshold, top_k=-1, candidate_size=200):
     scores = box_scores[:, -1]
     boxes = box_scores[:, :-1]
-
+    
     # Adjust candidate_size to not exceed the length of scores
-    if candidate_size > len(scores):
-        candidate_size = len(scores)
+    candidate_size = min(candidate_size, len(scores))
 
     # Get indices of top candidate_size scores
     top_scores_indices = np.argpartition(-scores, candidate_size - 1)[:candidate_size]
     top_scores_indices = top_scores_indices[np.argsort(-scores[top_scores_indices])]
 
     picked = []
-    while len(top_scores_indices) > 0:
+    while top_scores_indices.size > 0:
         current = top_scores_indices[0]
         picked.append(current)
         if 0 < top_k == len(picked):
