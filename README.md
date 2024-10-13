@@ -6,7 +6,7 @@ Opti-Face, short for "Optimal Face," is a hybrid machine learning model designed
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/Solomon-77/parti-face.git
+git clone https://github.com/Solomon-77/opti-face.git
 ```
 2. Requirements are ongoing
 
