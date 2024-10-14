@@ -1,7 +1,7 @@
 import cv2
 from utils.face_detection import FaceDetector, draw_boxes
 
-detector_path = "./models/version-RFB/RFB-320.mnn"
+detector_path = "./models/face_detection/RFB-320.mnn"
 
 def inference():
     cap = cv2.VideoCapture(0)
