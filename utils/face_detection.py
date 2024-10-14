@@ -4,7 +4,7 @@ import MNN
 import utils.box_utils_numpy as box_utils
 
 # Constants
-image_mean = np.array([127, 127, 127])
+image_mean = np.array([127, 127, 127], dtype=np.float32)
 image_std = 128.0
 iou_threshold = 0.3
 center_variance = 0.1
@@ -22,23 +22,26 @@ def process_image(image):
     return image.transpose((2, 0, 1)).astype(np.float32)
 
 def predict(width, height, confidences, boxes, prob_threshold, iou_threshold=0.3, top_k=-1):
-    boxes = boxes[0]
-    confidences = confidences[0]
+    confidences = confidences.squeeze(0)
+    boxes = boxes.squeeze(0)
     picked_box_probs = []
     picked_labels = []
+
     for class_index in range(1, confidences.shape[1]):
         probs = confidences[:, class_index]
         mask = probs > prob_threshold
         probs = probs[mask]
-        if probs.shape[0] == 0:
+        if probs.size == 0:
             continue
         subset_boxes = boxes[mask, :]
         box_probs = np.concatenate([subset_boxes, probs.reshape(-1, 1)], axis=1)
         box_probs = box_utils.hard_nms(box_probs, iou_threshold=iou_threshold, top_k=top_k)
         picked_box_probs.append(box_probs)
         picked_labels.extend([class_index] * box_probs.shape[0])
+
     if not picked_box_probs:
         return np.array([]), np.array([]), np.array([])
+
     picked_box_probs = np.concatenate(picked_box_probs)
     picked_box_probs[:, :4] *= np.array([width, height, width, height])
     return picked_box_probs[:, :4].astype(np.int32), np.array(picked_labels), picked_box_probs[:, 4]
@@ -54,7 +57,7 @@ class FaceDetector:
     def detect(self, frame):
         image_ori = frame
         image = process_image(image_ori)
-        
+
         tmp_input = MNN.Tensor((1, 3, input_size[1], input_size[0]), MNN.Halide_Type_Float, image, MNN.Tensor_DimensionType_Caffe)
         self.input_tensor.copyFrom(tmp_input)
 
