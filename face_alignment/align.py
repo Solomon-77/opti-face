@@ -1,12 +1,5 @@
-import sys
-import os
-
 from face_alignment import mtcnn
-import argparse
 from PIL import Image
-from tqdm import tqdm
-import random
-from datetime import datetime
 mtcnn_model = mtcnn.MTCNN(device='cpu', crop_size=(112, 112))
 
 def add_padding(pil_img, top, right, bottom, left, color=(0,0,0)):
@@ -17,21 +10,25 @@ def add_padding(pil_img, top, right, bottom, left, color=(0,0,0)):
     result.paste(pil_img, (left, top))
     return result
 
-def get_aligned_face(image_path, rgb_pil_image=None):
-    if rgb_pil_image is None:
+def get_aligned_face(image_path=None, rgb_pil_image=None):
+    if rgb_pil_image is None and image_path is not None:
         img = Image.open(image_path).convert('RGB')
-    else:
-        assert isinstance(rgb_pil_image, Image.Image), 'Face alignment module requires PIL image or path to the image'
+    elif rgb_pil_image is not None:
+        assert isinstance(rgb_pil_image, Image.Image), 'Face alignment module requires a PIL image or path to the image'
         img = rgb_pil_image
-    # find face
+    else:
+        raise ValueError('Either image_path or rgb_pil_image must be provided')
+
+    # Find face
     try:
         bboxes, faces = mtcnn_model.align_multi(img, limit=1)
-        face = faces[0]
+        if len(faces) > 0:
+            face = faces[0]
+            bbox = bboxes[0]  # Get the first face's bounding box
+            return face, bbox
+        else:
+            return None, None
     except Exception as e:
-        print('Face detection Failed due to error.')
+        print('Face detection failed due to error.')
         print(e)
-        face = None
-
-    return face
-
-
+        return None, None

@@ -2,7 +2,6 @@ from typing import Tuple
 import numpy as np
 import torch
 from PIL import Image
-from torch.autograd import Variable
 
 import sys
 import os
