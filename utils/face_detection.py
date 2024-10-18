@@ -74,13 +74,3 @@ class FaceDetector:
         boxes, labels, probs = predict(image_ori.shape[1], image_ori.shape[0], scores, boxes, threshold)
 
         return boxes, labels, probs
-
-def draw_boxes(image, boxes):
-    for box in boxes:
-        x1, y1, x2, y2 = box
-        x1 = max(0, x1 - 10)
-        y1 = max(0, y1 - 10)
-        x2 = min(image.shape[1], x2 + 10)
-        y2 = min(image.shape[0], y2)
-        cv2.rectangle(image, (x1, y1), (x2, y2), (255, 255, 0), 2)
-    return image
