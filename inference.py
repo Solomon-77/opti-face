@@ -5,8 +5,8 @@ import torch.nn.functional as F
 from utils.face_utils import preprocess_frame
 from utils.model_utils import load_face_recognition_model
 
-# Load the face recognition model
-model = load_face_recognition_model()
+# Load the face recognition model and device
+model, device = load_face_recognition_model()
 
 # Load saved embeddings and labels
 saved_data = np.load('face_embeddings.npy', allow_pickle=True).item()
@@ -14,10 +14,10 @@ saved_embeddings, saved_labels = saved_data['embeddings'], saved_data['labels']
 
 def recognize_face(embedding):
     best_match, highest_similarity = "Unknown", -1
-    embedding = embedding.cpu()
+    embedding = embedding.to(device)
     
     for saved_embedding, label in zip(saved_embeddings, saved_labels):
-        similarity = F.cosine_similarity(torch.tensor(saved_embedding), embedding).item()
+        similarity = F.cosine_similarity(torch.tensor(saved_embedding).to(device), embedding).item()
         
         if similarity > highest_similarity:
             highest_similarity, best_match = similarity, label
@@ -35,6 +35,7 @@ while True:
     faces = preprocess_frame(frame)
     
     for face_tensor, (x1, y1, x2, y2) in faces:
+        face_tensor = face_tensor.to(device)
         embedding = model(face_tensor).detach()
         recognized_person, similarity = recognize_face(embedding)
         
