@@ -1,6 +1,9 @@
+import torch
 from face_alignment import mtcnn
 from PIL import Image
-mtcnn_model = mtcnn.MTCNN(device='cpu', crop_size=(112, 112))
+
+device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+mtcnn_model = mtcnn.MTCNN(device=device, crop_size=(112, 112))
 
 def add_padding(pil_img, top, right, bottom, left, color=(0,0,0)):
     width, height = pil_img.size
@@ -24,7 +27,7 @@ def get_aligned_face(image_path=None, rgb_pil_image=None):
         bboxes, faces = mtcnn_model.align_multi(img, limit=1)
         if len(faces) > 0:
             face = faces[0]
-            bbox = bboxes[0]  # Get the first face's bounding box
+            bbox = bboxes[0]
             return face, bbox
         else:
             return None, None

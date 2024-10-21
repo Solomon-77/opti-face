@@ -17,7 +17,8 @@ from mtcnn_pytorch.src.align_trans import get_reference_facial_points, warp_and_
 class MTCNN():
     def __init__(self, device: str = 'cuda:0', crop_size: Tuple[int, int] = (112, 112)):
 
-        assert device in ['cuda:0', 'cpu']
+        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        self.device = torch.device(device)
         self.device = torch.device(device)
         assert crop_size in [(112, 112), (96, 112)]
         self.crop_size = crop_size
