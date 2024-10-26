@@ -18,7 +18,7 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
 ])
 
-TEMPLATE_LANDMARKS = np.float32([
+TEMPLATE_LANDMARKS = np.float16([
     [0.3150, 0.4600], [0.6850, 0.4600],  # Eyes
     [0.5000, 0.6500], [0.3500, 0.8250],  # Nose, Mouth
     [0.6500, 0.8250]
@@ -89,7 +89,7 @@ def align_face(face_img, target_size=(112, 112)):
         return None
     
     warped = cv2.warpPerspective(face_img, tform, target_size,
-                                flags=cv2.INTER_CUBIC,
+                                flags=cv2.INTER_LINEAR,
                                 borderMode=cv2.BORDER_REPLICATE)
     return Image.fromarray(cv2.cvtColor(warped, cv2.COLOR_BGR2RGB))
 
