@@ -103,7 +103,7 @@ def preprocess_image(image_path):
         return None
         
     for box in boxes.astype(int):
-        x1, y1, x2, y2 = [max(0, v) for v in (box[:2] - 10)] + [min(v, s) for v, s in zip(box[2:] + 10, image.shape[:2][::-1])]
+        x1, y1, x2, y2 = box
         face = align_face(image[y1:y2, x1:x2])
         if face:
             return transform(face).unsqueeze(0)
