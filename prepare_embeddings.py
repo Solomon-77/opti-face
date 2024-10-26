@@ -22,3 +22,5 @@ def create_face_embeddings(face_database_dir='./face_database/'):
     
     np.save('face_embeddings.npy', {'embeddings': np.array(embeddings), 'labels': labels})
     print("Face embeddings and labels saved to face_embeddings.npy")
+    
+create_face_embeddings()
