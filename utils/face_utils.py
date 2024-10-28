@@ -18,7 +18,7 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
 ])
 
-TEMPLATE_LANDMARKS = np.float16([
+TEMPLATE_LANDMARKS = np.float32([
     [0.3150, 0.4600], [0.6850, 0.4600],  # Eyes
     [0.5000, 0.6500], [0.3500, 0.8250],  # Nose, Mouth
     [0.6500, 0.8250]
