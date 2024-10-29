@@ -19,10 +19,12 @@ transform = transforms.Compose([
 ])
 
 TEMPLATE_LANDMARKS = np.float32([
-    [0.3150, 0.4600], [0.6850, 0.4600],  # Eyes
-    [0.5000, 0.6500], [0.3500, 0.8250],  # Nose, Mouth
-    [0.6500, 0.8250]
-])
+    [38.2946, 51.6963],     # Left eye
+    [73.5318, 51.6963],     # Right eye
+    [56.0252, 71.7366],     # Nose
+    [41.5493, 92.3655],     # Left mouth corner
+    [70.7299, 92.3655]      # Right mouth corner
+]) / 112.0
 
 def detect_faces(image):
     return face_detector.detect_one(image)
