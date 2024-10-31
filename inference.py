@@ -3,9 +3,8 @@ import torch
 import numpy as np
 import threading
 import queue
-import torch.nn.functional as F
 from torchvision import transforms
-import traceback
+from torch.nn.functional import cosine_similarity
 from utils.face_utils import align_face
 from utils.model_utils import load_face_recognition_model
 from ultralight import UltraLightDetector
@@ -15,37 +14,31 @@ class FaceRecognitionPipeline:
         self.face_detector = UltraLightDetector()
         self.model, self.device = load_face_recognition_model()
         saved_data = np.load('face_embeddings.npy', allow_pickle=True).item()
-        self.saved_embeddings = [torch.tensor(e).to(self.device) for e in saved_data['embeddings']]  # Convert once
+        self.saved_embeddings = [torch.tensor(e).to(self.device) for e in saved_data['embeddings']]
         self.saved_labels = saved_data['labels']
         
         self.align_queue = queue.Queue(maxsize=10)
         self.recog_queue = queue.Queue(maxsize=10)
-        
-        self.lock = threading.Lock()
         self.results = {}
-        self.next_id = 0  # Needs to be accessed under lock to avoid race conditions
+        self.next_id = 0
         self.frame_count = 0
         self.running = True
+        self.lock = threading.Lock()
         
-        # Start worker threads
-        self.alignment_thread = threading.Thread(target=self._alignment_worker)
-        self.recognition_thread = threading.Thread(target=self._recognition_worker)
-        self.alignment_thread.daemon = True
-        self.recognition_thread.daemon = True
-        self.alignment_thread.start()
-        self.recognition_thread.start()
+        for worker in [self._alignment_worker, self._recognition_worker]:
+            thread = threading.Thread(target=worker)
+            thread.daemon = True
+            thread.start()
 
     def _alignment_worker(self):
         while self.running:
             try:
-                data = self.align_queue.get()  # Block until data is available
-                if data is None:
+                frame, box, face_id = self.align_queue.get()
+                if frame is None:
                     continue
                     
-                frame, box, face_id = data
                 x1, y1, x2, y2 = map(int, box)
-                face_img = frame[y1:y2, x1:x2]
-                aligned_face = align_face(face_img)
+                aligned_face = align_face(frame[y1:y2, x1:x2])
                 
                 if aligned_face is not None:
                     self.recog_queue.put((aligned_face, face_id))
@@ -53,27 +46,24 @@ class FaceRecognitionPipeline:
                 self.align_queue.task_done()
             except Exception as e:
                 print(f"Alignment error: {e}")
-                traceback.print_exc()
 
     def _recognition_worker(self):
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize([0.5]*3, [0.5]*3)
+        ])
+        
         while self.running:
             try:
-                data = self.recog_queue.get()
-                if data is None:
+                aligned_face, face_id = self.recog_queue.get()
+                if aligned_face is None:
                     continue
-                    
-                aligned_face, face_id = data
-                face_tensor = transforms.Compose([
-                    transforms.ToTensor(),
-                    transforms.Normalize([0.5]*3, [0.5]*3)
-                ])(aligned_face).unsqueeze(0).to(self.device)
                 
+                face_tensor = transform(aligned_face).unsqueeze(0).to(self.device)
                 embedding = self.model(face_tensor).detach()
                 
-                # Pre-converted embeddings are already on the device
-                similarities = [F.cosine_similarity(saved_embedding, embedding).item() 
-                                for saved_embedding in self.saved_embeddings]
-                
+                similarities = [cosine_similarity(saved_emb, embedding).item() 
+                              for saved_emb in self.saved_embeddings]
                 best_idx = np.argmax(similarities)
                 best_score = similarities[best_idx]
                 
@@ -88,19 +78,14 @@ class FaceRecognitionPipeline:
                 self.recog_queue.task_done()
             except Exception as e:
                 print(f"Recognition error: {e}")
-                traceback.print_exc()
 
     def process_frame(self, frame):
-        # Check for proper frame type
         if not isinstance(frame, np.ndarray) or frame.size == 0:
             return frame
             
         self.frame_count += 1
-        result_frame = frame  # No need to copy unless we modify
-        
-        current_faces = set()
-        
         boxes, _ = self.face_detector.detect_one(frame)
+        
         for box in boxes:
             face_id = next((fid for fid, data in self.results.items() 
                           if np.linalg.norm(np.array(data['box']) - box) < 50), 
@@ -116,32 +101,30 @@ class FaceRecognitionPipeline:
                     }
                     self.next_id += 1
                 
-                self.results[face_id]['box'] = box
-                self.results[face_id]['last_seen'] = self.frame_count
+                self.results[face_id].update({
+                    'box': box,
+                    'last_seen': self.frame_count
+                })
             
-            # Queue for processing every 5th frame
             if self.frame_count % 5 == 0:
                 try:
                     self.align_queue.put_nowait((frame.copy(), box, face_id))
                 except queue.Full:
                     pass
             
-            # Draw results
             result = self.results[face_id]
             color = (0, 255, 0) if result['name'] != "Unknown" else (0, 0, 255)
             x1, y1, x2, y2 = map(int, box)
-            cv2.rectangle(result_frame, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(result_frame, 
-                       f"{result['name']}, score: {result['similarity']:.2f}",
+            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+            cv2.putText(frame, f"{result['name']}, score: {result['similarity']:.2f}",
                        (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
         
-        # Clean up old results
         if self.frame_count % 30 == 0:
             with self.lock:
                 self.results = {fid: data for fid, data in self.results.items()
                               if self.frame_count - data['last_seen'] <= 15}
         
-        return result_frame
+        return frame
 
     def cleanup(self):
         self.running = False
@@ -156,7 +139,7 @@ def main():
             ret, frame = cap.read()
             if not ret:
                 break
-                
+            
             processed = pipeline.process_frame(frame)
             if processed is not None:
                 cv2.imshow('Face Recognition', processed)
