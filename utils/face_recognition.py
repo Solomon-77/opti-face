@@ -33,16 +33,6 @@ class TimmFRWrapperV2(nn.Module):
 def get_model(name):
     if name == 'edgeface_xs_gamma_06':
         return replace_linear_with_lowrank(TimmFRWrapperV2('edgenext_x_small'), rank_ratio=0.6)
-    elif name == 'edgeface_xs_q':
-        model = TimmFRWrapperV2('edgenext_x_small')
-        return torch.quantization.quantize_dynamic(model, qconfig_spec={nn.Linear}, dtype=torch.qint8)
-    elif name == 'edgeface_xxs':
-        return TimmFRWrapperV2('edgenext_xx_small')
-    elif name == 'edgeface_base':
-        return TimmFRWrapperV2('edgenext_base')
-    elif name == 'edgeface_xxs_q':
-        model = TimmFRWrapperV2('edgenext_xx_small')
-        return torch.quantization.quantize_dynamic(model, qconfig_spec={nn.Linear}, dtype=torch.qint8)
     elif name == 'edgeface_s_gamma_05':
         return replace_linear_with_lowrank(TimmFRWrapperV2('edgenext_small'), rank_ratio=0.5)
     else:
