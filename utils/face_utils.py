@@ -3,10 +3,11 @@ import numpy as np
 import mediapipe as mp
 from PIL import Image
 from torchvision import transforms
-from ultralight import UltraLightDetector
+from utils.face_detection import FaceDetector
+import os
 
 # Initialize global components
-face_detector = UltraLightDetector()
+face_detector = FaceDetector(onnx_file='checkpoints/scrfd.onnx')
 mp_face_mesh = mp.solutions.face_mesh.FaceMesh(
     static_image_mode=True,
     max_num_faces=20,
@@ -79,8 +80,15 @@ def get_transform(src, dst):
     return T
 
 def detect_faces(image):
-    """Detect faces in an image."""
-    return face_detector.detect_one(image)
+    """Detect faces in an image using SCRFD."""
+    det, _ = face_detector.detect(image, thresh=0.5, input_size=(640, 640))
+    if det is None or len(det) == 0:
+        return np.array([]), np.array([])
+    
+    # Convert detection format to match previous implementation
+    boxes = det[:, :4]  # Extract bounding boxes
+    scores = det[:, 4]  # Extract confidence scores
+    return boxes, scores
 
 def align_face(face_img, size=(112, 112)):
     """Align a face image to a canonical pose."""
