@@ -7,11 +7,11 @@ from torchvision import transforms
 from torch.nn.functional import cosine_similarity
 from utils.face_utils import align_face
 from utils.model_utils import load_face_recognition_model
-from ultralight import UltraLightDetector
+from utils.face_detection import FaceDetector
 
 class FaceRecognitionPipeline:
     def __init__(self):
-        self.face_detector = UltraLightDetector()
+        self.face_detector = FaceDetector(onnx_file='checkpoints/scrfd.onnx')
         self.model, self.device = load_face_recognition_model()
         saved_data = np.load('face_embeddings.npy', allow_pickle=True).item()
         self.saved_embeddings = [torch.tensor(e).to(self.device) for e in saved_data['embeddings']]
@@ -84,7 +84,12 @@ class FaceRecognitionPipeline:
             return frame
             
         self.frame_count += 1
-        boxes, _ = self.face_detector.detect_one(frame)
+        det, _ = self.face_detector.detect(frame, thresh=0.5, input_size=(640, 640))
+        
+        if det is None or len(det) == 0:
+            return frame
+            
+        boxes = det[:, :4]
         
         for box in boxes:
             face_id = next((fid for fid, data in self.results.items() 
