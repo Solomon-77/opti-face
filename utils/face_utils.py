@@ -4,15 +4,14 @@ import mediapipe as mp
 from PIL import Image
 from torchvision import transforms
 from utils.face_detection import FaceDetector
-import os
 
 # Initialize global components
 face_detector = FaceDetector(onnx_file='checkpoints/scrfd.onnx')
 mp_face_mesh = mp.solutions.face_mesh.FaceMesh(
     static_image_mode=True,
     max_num_faces=20,
-    min_detection_confidence=0.7,
-    min_tracking_confidence=0.7,
+    min_detection_confidence=0.5,
+    min_tracking_confidence=0.5,
     refine_landmarks=True
 )
 
@@ -24,14 +23,14 @@ transform = transforms.Compose([
 # Constants
 TEMPLATE_LANDMARKS = np.float32([
     [38.2946, 51.6963], [73.5318, 51.6963],  # Eyes
-    [56.0252, 71.7366],                       # Nose
+    [56.0252, 71.7366],                      # Nose
     [41.5493, 92.3655], [70.7299, 92.3655]   # Mouth corners
 ]) / 112.0
 
 LANDMARK_GROUPS = [
     [([33, 133], [130, 243, 112, 156, 157, 158])],     # Left eye
     [([362, 263], [359, 466, 341, 384, 385, 386])],    # Right eye
-    [([1], [2, 98, 327])],                             # Nose
+    [([1], [2, 98, 327, 168])],                        # Nose
     [([61, 91], [62, 87, 146, 177, 178])],             # Left mouth
     [([291, 321], [292, 317, 375, 407, 408])]          # Right mouth
 ]
