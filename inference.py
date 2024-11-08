@@ -11,12 +11,16 @@ from utils.face_detection import FaceDetector
 
 class FaceRecognitionPipeline:
     def __init__(self):
+        # Initialize face detector, recognition model, and load embeddings
         self.face_detector = FaceDetector(onnx_file='checkpoints/scrfd.onnx')
         self.model, self.device = load_face_recognition_model()
+        
+        # Load saved embeddings and labels
         saved_data = np.load('face_embeddings.npy', allow_pickle=True).item()
         self.saved_embeddings = [torch.tensor(e).to(self.device) for e in saved_data['embeddings']]
         self.saved_labels = saved_data['labels']
         
+        # Initialize queues, results storage, and threading locks
         self.align_queue = queue.Queue(maxsize=10)
         self.recog_queue = queue.Queue(maxsize=10)
         self.results = {}
@@ -25,12 +29,14 @@ class FaceRecognitionPipeline:
         self.running = True
         self.lock = threading.Lock()
         
+        # Start alignment and recognition worker threads
         for worker in [self._alignment_worker, self._recognition_worker]:
             thread = threading.Thread(target=worker)
             thread.daemon = True
             thread.start()
 
     def _alignment_worker(self):
+        """Thread worker for aligning faces before recognition."""
         while self.running:
             try:
                 frame, box, face_id = self.align_queue.get()
@@ -48,9 +54,10 @@ class FaceRecognitionPipeline:
                 print(f"Alignment error: {e}")
 
     def _recognition_worker(self):
+        """Thread worker for face recognition using aligned faces."""
         transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize([0.5]*3, [0.5]*3)
+            transforms.Normalize([0.5] * 3, [0.5] * 3)
         ])
         
         while self.running:
@@ -59,18 +66,20 @@ class FaceRecognitionPipeline:
                 if aligned_face is None:
                     continue
                 
+                # Transform and get embedding
                 face_tensor = transform(aligned_face).unsqueeze(0).to(self.device)
                 embedding = self.model(face_tensor).detach()
                 
-                similarities = [cosine_similarity(saved_emb, embedding).item() 
-                              for saved_emb in self.saved_embeddings]
+                # Calculate cosine similarity with saved embeddings
+                similarities = [cosine_similarity(saved_emb, embedding).item() for saved_emb in self.saved_embeddings]
                 best_idx = np.argmax(similarities)
                 best_score = similarities[best_idx]
                 
+                # Update recognition result
                 with self.lock:
                     if face_id in self.results:
                         self.results[face_id].update({
-                            'name': self.saved_labels[best_idx] if best_score > 0.41 else "Unknown",
+                            'name': self.saved_labels[best_idx] if best_score > 0.5 else "Unknown",
                             'similarity': best_score,
                             'last_seen': self.frame_count
                         })
@@ -80,6 +89,7 @@ class FaceRecognitionPipeline:
                 print(f"Recognition error: {e}")
 
     def process_frame(self, frame):
+        """Detect, align, and recognize faces in a video frame."""
         if not isinstance(frame, np.ndarray) or frame.size == 0:
             return frame
             
@@ -92,10 +102,13 @@ class FaceRecognitionPipeline:
         boxes = det[:, :4]
         
         for box in boxes:
-            face_id = next((fid for fid, data in self.results.items() 
-                          if np.linalg.norm(np.array(data['box']) - box) < 50), 
-                         f"face_{self.next_id}")
+            # Assign unique face ID
+            face_id = next(
+                (fid for fid, data in self.results.items() if np.linalg.norm(np.array(data['box']) - box) < 50), 
+                f"face_{self.next_id}"
+            )
             
+            # Initialize or update face recognition result
             with self.lock:
                 if face_id not in self.results:
                     self.results[face_id] = {
@@ -111,27 +124,30 @@ class FaceRecognitionPipeline:
                     'last_seen': self.frame_count
                 })
             
+            # Queue frame for alignment every 5 frames
             if self.frame_count % 5 == 0:
                 try:
                     self.align_queue.put_nowait((frame.copy(), box, face_id))
                 except queue.Full:
                     pass
             
+            # Draw detection box and label on frame
             result = self.results[face_id]
             color = (0, 255, 0) if result['name'] != "Unknown" else (0, 0, 255)
             x1, y1, x2, y2 = map(int, box)
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
             cv2.putText(frame, f"{result['name']}, score: {result['similarity']:.2f}",
-                       (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+                        (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
         
+        # Clean up stale results every 30 frames
         if self.frame_count % 30 == 0:
             with self.lock:
-                self.results = {fid: data for fid, data in self.results.items()
-                              if self.frame_count - data['last_seen'] <= 15}
+                self.results = {fid: data for fid, data in self.results.items() if self.frame_count - data['last_seen'] <= 15}
         
         return frame
 
     def cleanup(self):
+        """Stop the pipeline and release resources."""
         self.running = False
         cv2.destroyAllWindows()
 
