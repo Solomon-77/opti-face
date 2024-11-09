@@ -79,7 +79,7 @@ class FaceRecognitionPipeline:
                 with self.lock:
                     if face_id in self.results:
                         self.results[face_id].update({
-                            'name': self.saved_labels[best_idx] if best_score > 0.5 else "Unknown",
+                            'name': self.saved_labels[best_idx] if best_score > 0.45 else "Unknown",
                             'similarity': best_score,
                             'last_seen': self.frame_count
                         })

@@ -10,8 +10,8 @@ face_detector = FaceDetector(onnx_file='checkpoints/scrfd.onnx')
 mp_face_mesh = mp.solutions.face_mesh.FaceMesh(
     static_image_mode=True,
     max_num_faces=20,
-    min_detection_confidence=0.75,
-    min_tracking_confidence=0.75,
+    min_detection_confidence=0.7,
+    min_tracking_confidence=0.7,
     refine_landmarks=True
 )
 
