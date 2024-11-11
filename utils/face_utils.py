@@ -9,7 +9,7 @@ from utils.face_detection import FaceDetector
 from utils.face_recognition import get_model
 
 # Initialize face detector and MediaPipe FaceMesh
-face_detector = FaceDetector(onnx_file='checkpoints/scrfd.onnx')
+face_detector = FaceDetector(onnx_file='checkpoints/scrfd_500m.onnx')
 mp_face_mesh = mp.solutions.face_mesh.FaceMesh(
     static_image_mode=True,
     max_num_faces=20,

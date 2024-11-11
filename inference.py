@@ -11,7 +11,7 @@ from utils.face_detection import FaceDetector
 class FaceRecognitionPipeline:
     def __init__(self):
         # Initialize face detector, recognition model, and load embeddings
-        self.face_detector = FaceDetector(onnx_file='checkpoints/scrfd.onnx')
+        self.face_detector = FaceDetector(onnx_file='checkpoints/scrfd_500m.onnx')
         self.model, self.device = load_face_recognition_model()
         
         # Load saved embeddings and labels
