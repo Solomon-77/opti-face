@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import threading
 import queue
+import os
 from torch.nn.functional import cosine_similarity
 from utils.face_utils import detect_faces, align_face, load_face_recognition_model, transform
 
@@ -11,10 +12,22 @@ class FaceRecognitionPipeline:
         # Load the recognition model and face detector from face_utils
         self.model, self.device = load_face_recognition_model()
         
-        # Load saved embeddings and labels
-        saved_data = np.load('face_embeddings.npy', allow_pickle=True).item()
-        self.saved_embeddings = [torch.tensor(e).to(self.device) for e in saved_data['embeddings']]
-        self.saved_labels = saved_data['labels']
+        # Load saved embeddings and labels from individual .npz files
+        face_database_dir = './face_database/'
+        self.saved_embeddings = []
+        self.saved_labels = []
+        
+        for filename in os.listdir(face_database_dir):
+            if filename.endswith('.npz'):
+                person_name = os.path.splitext(filename)[0]
+                npz_path = os.path.join(face_database_dir, filename)
+                data = np.load(npz_path)
+                embeddings = data['embeddings']
+                
+                # Add all embeddings for this person
+                for embedding in embeddings:
+                    self.saved_embeddings.append(torch.tensor(embedding).to(self.device))
+                    self.saved_labels.append(person_name)
         
         # Initialize queues, results storage, and threading locks
         self.align_queue = queue.Queue(maxsize=10)
