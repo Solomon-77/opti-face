@@ -1,8 +1,6 @@
 import os
 import cv2
-import datetime
 import numpy as np
-
 
 def distance2bbox(points, distance, max_shape=None):
     """Decode distance prediction to bounding box.
@@ -27,7 +25,6 @@ def distance2bbox(points, distance, max_shape=None):
         y2 = y2.clamp(min=0, max=max_shape[0])
     return np.stack([x1, y1, x2, y2], axis=-1)
 
-
 def distance2kps(points, distance, max_shape=None):
     """Decode distance prediction to bounding box.
 
@@ -50,7 +47,6 @@ def distance2kps(points, distance, max_shape=None):
         preds.append(px)
         preds.append(py)
     return np.stack(preds, axis=-1)
-
 
 class FaceDetector:
     def __init__(self, onnx_file=None, session=None):
