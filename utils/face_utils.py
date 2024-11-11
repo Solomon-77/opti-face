@@ -2,8 +2,11 @@ import cv2
 import numpy as np
 import mediapipe as mp
 from PIL import Image
+import torch
+import os
 from torchvision import transforms
 from utils.face_detection import FaceDetector
+from utils.face_recognition import get_model
 
 # Initialize face detector and MediaPipe FaceMesh
 face_detector = FaceDetector(onnx_file='checkpoints/scrfd.onnx')
@@ -36,6 +39,19 @@ LANDMARK_GROUPS = [
     [([61, 91], [62, 87, 146, 177, 178])],             # Left mouth
     [([291, 321], [292, 317, 375, 407, 408])]          # Right mouth
 ]
+
+def load_face_recognition_model(model_path="checkpoints/edgeface_s_gamma_05.pt"):
+    # Automatically infer model name from the file name
+    model_name = os.path.splitext(os.path.basename(model_path))[0]
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    model = get_model(model_name)
+    model.load_state_dict(torch.load(model_path, map_location=device))
+    model.to(device)
+    model.eval()
+    
+    return model, device
 
 def get_landmarks(image):
     """Extract face landmarks from an image using MediaPipe FaceMesh."""

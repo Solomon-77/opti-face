@@ -1,7 +1,6 @@
 import os
 import numpy as np
-from utils.face_utils import preprocess_image
-from utils.model_utils import load_face_recognition_model
+from utils.face_utils import preprocess_image, load_face_recognition_model
 
 def create_face_embeddings(face_database_dir='./face_database/'):
     model, device = load_face_recognition_model()
