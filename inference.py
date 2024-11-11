@@ -3,15 +3,12 @@ import torch
 import numpy as np
 import threading
 import queue
-from torchvision import transforms
 from torch.nn.functional import cosine_similarity
-from utils.face_utils import align_face, load_face_recognition_model
-from utils.scrfd import FaceDetector
+from utils.face_utils import detect_faces, align_face, load_face_recognition_model, transform
 
 class FaceRecognitionPipeline:
     def __init__(self):
-        # Initialize face detector, recognition model, and load embeddings
-        self.face_detector = FaceDetector(onnx_file='checkpoints/scrfd_500m.onnx')
+        # Load the recognition model and face detector from face_utils
         self.model, self.device = load_face_recognition_model()
         
         # Load saved embeddings and labels
@@ -54,11 +51,6 @@ class FaceRecognitionPipeline:
 
     def _recognition_worker(self):
         """Thread worker for face recognition using aligned faces."""
-        transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize([0.5] * 3, [0.5] * 3)
-        ])
-        
         while self.running:
             try:
                 aligned_face, face_id = self.recog_queue.get()
@@ -93,13 +85,11 @@ class FaceRecognitionPipeline:
             return frame
             
         self.frame_count += 1
-        det, _ = self.face_detector.detect(frame, thresh=0.5, input_size=(640, 640))
+        boxes, _ = detect_faces(frame)
         
-        if det is None or len(det) == 0:
+        if len(boxes) == 0:
             return frame
             
-        boxes = det[:, :4]
-        
         for box in boxes:
             # Assign unique face ID
             face_id = next(
