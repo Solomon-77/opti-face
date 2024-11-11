@@ -1,5 +1,4 @@
 import timm
-import torch
 import torch.nn as nn
 
 class LoRaLin(nn.Module):

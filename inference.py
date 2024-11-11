@@ -6,7 +6,7 @@ import queue
 from torchvision import transforms
 from torch.nn.functional import cosine_similarity
 from utils.face_utils import align_face, load_face_recognition_model
-from utils.face_detection import FaceDetector
+from utils.scrfd import FaceDetector
 
 class FaceRecognitionPipeline:
     def __init__(self):

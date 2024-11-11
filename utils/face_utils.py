@@ -5,8 +5,8 @@ from PIL import Image
 import torch
 import os
 from torchvision import transforms
-from utils.face_detection import FaceDetector
-from utils.face_recognition import get_model
+from utils.scrfd import FaceDetector
+from utils.edgeface import get_model
 
 # Initialize face detector and MediaPipe FaceMesh
 face_detector = FaceDetector(onnx_file='checkpoints/scrfd_500m.onnx')
