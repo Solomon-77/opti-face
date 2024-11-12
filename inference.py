@@ -30,8 +30,8 @@ class FaceRecognitionPipeline:
                     self.saved_labels.append(person_name)
         
         # Initialize queues, results storage, and threading locks
-        self.align_queue = queue.Queue(maxsize=10)
-        self.recog_queue = queue.Queue(maxsize=10)
+        self.align_queue = queue.Queue(maxsize=5)
+        self.recog_queue = queue.Queue(maxsize=5)
         self.results = {}
         self.next_id = 0
         self.frame_count = 0
