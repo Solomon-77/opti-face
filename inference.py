@@ -53,7 +53,13 @@ class FaceRecognitionPipeline:
                     continue
                     
                 x1, y1, x2, y2 = map(int, box)
-                aligned_face = align_face(frame[y1:y2, x1:x2])
+                face_crop = frame[y1:y2, x1:x2]
+                
+                # Add this check
+                if face_crop.size == 0 or face_crop.shape[0] == 0 or face_crop.shape[1] == 0:
+                    continue
+                    
+                aligned_face = align_face(face_crop)
                 
                 if aligned_face is not None:
                     self.recog_queue.put((aligned_face, face_id))

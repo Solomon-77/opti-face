@@ -12,7 +12,7 @@ from utils.edgeface import get_model
 face_detector = FaceDetector(onnx_file='checkpoints/scrfd_500m.onnx')
 mp_face_mesh = mp.solutions.face_mesh.FaceMesh(
     static_image_mode=True,
-    max_num_faces=20,
+    max_num_faces=1,
     min_detection_confidence=0.7,
     min_tracking_confidence=0.7,
     refine_landmarks=True
@@ -111,7 +111,7 @@ def get_transform(src, dst):
 
 def detect_faces(image):
     """Detect faces in an image using SCRFD."""
-    det, _ = face_detector.detect(image, thresh=0.5, input_size=(640, 640))
+    det, _ = face_detector.detect(image, input_size=(640, 640))
     if det is None or len(det) == 0:
         return np.array([]), np.array([])
 
