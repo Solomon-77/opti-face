@@ -9,10 +9,7 @@ from utils.face_utils import detect_faces, align_face, load_face_recognition_mod
 
 class FaceRecognitionPipeline:
     def __init__(self):
-        # Load the recognition model and face detector from face_utils
         self.model, self.device = load_face_recognition_model()
-        
-        # Load saved embeddings and labels from individual .npz files
         face_database_dir = './face_database/'
         self.saved_embeddings = []
         self.saved_labels = []
@@ -28,8 +25,7 @@ class FaceRecognitionPipeline:
                 for embedding in embeddings:
                     self.saved_embeddings.append(torch.tensor(embedding).to(self.device))
                     self.saved_labels.append(person_name)
-        
-        # Initialize queues, results storage, and threading locks
+                    
         self.align_queue = queue.Queue(maxsize=5)
         self.recog_queue = queue.Queue(maxsize=5)
         self.results = {}
@@ -162,10 +158,6 @@ class FaceRecognitionPipeline:
 def main():
     pipeline = FaceRecognitionPipeline()
     cap = cv2.VideoCapture(0)
-    
-    # optional
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
     
     try:
         while cap.isOpened():
