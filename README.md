@@ -7,6 +7,7 @@ Opti-Face, short for "Optimal Face," is a hybrid face recognition system.
 1. Clone the repository:
 ```bash
 git clone https://github.com/Solomon-77/opti-face.git
+```
 
 ## Contributors
 
