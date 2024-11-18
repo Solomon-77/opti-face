@@ -4,6 +4,8 @@ import mediapipe as mp
 from PIL import Image
 import torch
 import os
+import warnings
+warnings.filterwarnings("ignore")
 from torchvision import transforms
 from utils.scrfd import FaceDetector
 from utils.edgeface import get_model
