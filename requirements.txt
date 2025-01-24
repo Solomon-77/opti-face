@@ -8,3 +8,4 @@ Pillow
 timm
 torch
 torchvision
+sv-ttk
