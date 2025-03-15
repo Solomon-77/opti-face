@@ -10,7 +10,7 @@ import queue  # Detailed: Import the queue module to safely share tasks between 
              # Simple: Helps share work between different threads.
 import os  # Detailed: Import the OS module to interact with the file system (files and directories).
          # Simple: Lets us work with files and folders.
-from tkinter import Tk, StringVar, Canvas, ttk, Toplevel  
+from tkinter import Tk, StringVar, Canvas, ttk, Toplevel
 # Detailed: Import Tkinter components for building the graphical user interface (GUI).
 # Simple: These help create windows, text boxes, buttons, etc.
 from prepare_embeddings_system_v1 import FaceEmbeddingApp  
