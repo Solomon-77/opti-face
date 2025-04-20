@@ -1,0 +1,19 @@
+# Sample of what should be inside this directory:
+
+name1  
+├── pic1.jpg  
+├── pic2.png  
+├── pic_whatever.img
+name2  
+├── pic1.jpg  
+├── pic2.png  
+├── pic_whatever.img
+your_name  
+├── your_pic1.jpg  
+├── your_pic2.png  
+├── your_pic_whatever.img
+name1.npz  
+name2.npz
+your_name.npz  
+
+# The .npz files are generated after running prepare_embeddings.py

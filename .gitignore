@@ -1,6 +1,8 @@
 **/__pycache__/
 src/backend/checkpoints/*
+!src/backend/checkpoints/.gitkeep
 src/backend/face_database/*
+!src/backend/face_database/.gitkeep
 
 .venv
 uv.lock
