@@ -3,3 +3,4 @@ src/backend/checkpoints/*
 src/backend/face_database/*
 
 .venv
+uv.lock
