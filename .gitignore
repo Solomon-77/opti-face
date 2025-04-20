@@ -1,2 +1,5 @@
-__pycache__
-face_embeddings.npy
+**/__pycache__/
+src/backend/checkpoints/*
+src/backend/face_database/*
+
+.venv

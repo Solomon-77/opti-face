@@ -1,0 +1,281 @@
+import sys
+import qtawesome as qta
+from PyQt6.QtWidgets import (
+    QApplication,
+    QWidget,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+    QHBoxLayout,
+    QStackedWidget,
+)
+from PyQt6.QtCore import Qt, QTimer, QSize
+from PyQt6.QtGui import QCursor
+
+# --- Application Setup ---
+app = QApplication(sys.argv)
+
+# Change cursor upon hover
+cursor_pointer = QCursor(Qt.CursorShape.PointingHandCursor)
+
+# Admin credentials
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "admin123"
+
+# Admin window
+class AdminWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Admin Screen")
+        self.resize(900, 600)
+        
+        # Admin window layout
+        admin_layout = QHBoxLayout(self)
+        admin_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Sidebar
+        sidebar = QWidget()
+        sidebar.setFixedWidth(220)
+        sidebar_layout = QVBoxLayout(sidebar)
+        sidebar_layout.setContentsMargins(15, 15, 15, 15)
+        sidebar_layout.setSpacing(10)
+        sidebar_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        sidebar.setObjectName("sidebar")
+        
+        # Dashboard button
+        self.dashboard_button = QPushButton("Dashboard")
+        self.dashboard_button.setIcon(qta.icon('ri.dashboard-line'))
+        self.dashboard_button.setIconSize(QSize(18, 18))
+        self.dashboard_button.setCursor(cursor_pointer)
+        self.dashboard_button.setProperty("class", "sidebar-buttons")
+        self.dashboard_button.setCheckable(True)
+        self.dashboard_button.setChecked(True)
+        sidebar_layout.addWidget(self.dashboard_button)
+        
+        # Train button
+        self.train_button = QPushButton("Train")
+        self.train_button.setIcon(qta.icon('ph.camera'))
+        self.train_button.setIconSize(QSize(18, 18))
+        self.train_button.setCursor(cursor_pointer)
+        self.train_button.setProperty("class", "sidebar-buttons")
+        self.train_button.setCheckable(True)
+        sidebar_layout.addWidget(self.train_button)
+        
+        # Settings button
+        self.settings_button = QPushButton("Settings")
+        self.settings_button.setIcon(qta.icon('ri.settings-4-line'))
+        self.settings_button.setIconSize(QSize(18, 18))
+        self.settings_button.setCursor(cursor_pointer)
+        self.settings_button.setProperty("class", "sidebar-buttons")
+        self.settings_button.setCheckable(True)
+        sidebar_layout.addWidget(self.settings_button)
+        
+        # Stacked widget
+        self.contentStack = QStackedWidget()
+        
+        # Dashboard page
+        dashboard_page = QWidget()
+        dashboard_layout = QVBoxLayout(dashboard_page)
+        dashboard_label = QLabel("This is dashboard.")
+        dashboard_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        dashboard_layout.addWidget(dashboard_label)
+        
+        # Train page
+        train_page = QWidget()
+        train_layout = QVBoxLayout(train_page)
+        train_label = QLabel("This is the training interface.")
+        train_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        train_layout.addWidget(train_label)
+        
+        # Settings page
+        settings_page = QWidget()
+        settings_layout = QVBoxLayout(settings_page)
+        settings_label = QLabel("This is settings.")
+        settings_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        settings_layout.addWidget(settings_label)
+        
+        # Add pages to stack
+        self.contentStack.addWidget(dashboard_page)
+        self.contentStack.addWidget(train_page)
+        self.contentStack.addWidget(settings_page)
+        
+        admin_layout.addWidget(sidebar)
+        admin_layout.addWidget(self.contentStack)
+        
+        self.dashboard_button.clicked.connect(lambda: self._update_button_states(0, self.dashboard_button))
+        self.train_button.clicked.connect(lambda: self._update_button_states(1, self.train_button))
+        self.settings_button.clicked.connect(lambda: self._update_button_states(2, self.settings_button))
+        
+        # Styling
+        self.setStyleSheet(
+            """
+            #sidebar {
+                background-color: #2a2b2e;
+            }
+            *[class=sidebar-buttons] {
+                font-size: 16px;
+                padding: 10px;
+                border-radius: 6px;
+                background-color: None;
+                text-align: left;
+            }
+            *[class=sidebar-buttons]:checked {
+                background-color: white;
+                color: black;
+            }
+            *[class=sidebar-buttons]:hover:!checked {
+                 background-color: #3a3b3e;
+            }
+            """
+        )
+        
+        self._update_icon_color(self.dashboard_button)
+        self._update_icon_color(self.train_button)
+        self._update_icon_color(self.settings_button)
+        
+    def _update_button_states(self, index, clicked_button):
+        # Uncheck all buttons first
+        self.dashboard_button.setChecked(False)
+        self.train_button.setChecked(False)
+        self.settings_button.setChecked(False)
+
+        # Check the clicked button
+        clicked_button.setChecked(True)
+
+        # Switch to the correct page in the stack
+        self.contentStack.setCurrentIndex(index)  
+        
+        self._update_icon_color(self.dashboard_button)
+        self._update_icon_color(self.train_button)
+        self._update_icon_color(self.settings_button)
+        
+    def _update_icon_color(self, button):
+        icon_name = ""
+        default_color = 'white'
+        checked_color = 'black'
+
+        if button == self.dashboard_button:
+            icon_name = 'ri.dashboard-line'
+        elif button == self.train_button:
+            icon_name = 'ph.camera-light'
+        elif button == self.settings_button:
+            icon_name = 'ri.settings-4-line'
+
+        if icon_name:
+            if button.isChecked():
+                button.setIcon(qta.icon(icon_name, color=checked_color))
+            else:
+                button.setIcon(qta.icon(icon_name, color=default_color)) 
+        
+def login():
+    if username.text() == ADMIN_USERNAME and password.text() == ADMIN_PASSWORD:
+        global admin_window
+        admin_window = AdminWindow()
+        admin_window.show()
+        window.close()
+    else:
+        error_label.setText("Invalid username or password.")
+        error_label.show()
+        password.clear()
+        QTimer.singleShot(5000, error_label.hide)
+
+# --- Main Window Setup ---
+window = QWidget()
+window.setWindowTitle("OptiFace")
+window.resize(450, 600)
+
+# Title label
+title = QLabel("Face Recognition System")
+title.setObjectName("title")
+title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+title.setWordWrap(True)
+
+# Username input
+username = QLineEdit()
+username.setProperty("class", "user-pass")
+username.setPlaceholderText("Username")
+
+# Password input
+password = QLineEdit()
+password.setProperty("class", "user-pass")
+password.setPlaceholderText("Password")
+password.setEchoMode(QLineEdit.EchoMode.Password)
+password.returnPressed.connect(login)
+
+# Error label
+error_label = QLabel("")
+error_label.setObjectName("error-label")
+error_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+error_label.hide()
+
+# Login button
+login_button = QPushButton("Login")
+login_button.setObjectName("login-button")
+login_button.setCursor(cursor_pointer)
+login_button.clicked.connect(login)
+
+# Layout
+main_layout = QVBoxLayout(window)
+main_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+login_form = QWidget()
+login_form.setMaximumWidth(350)
+
+login_form_layout = QVBoxLayout(login_form)
+login_form_layout.setSpacing(20)
+login_form_layout.setContentsMargins(30, 0, 30, 0)
+
+login_form_layout.addWidget(title)
+login_form_layout.addWidget(username)
+login_form_layout.addWidget(password)
+login_form_layout.addWidget(error_label)
+login_form_layout.addWidget(login_button)
+
+main_layout.addWidget(login_form)
+
+# Styling
+app.setStyleSheet(
+    """
+    QWidget {
+        background-color: #202124;
+        font-family: "Consolas", "Courier New", monospace;
+    }
+    #title {
+        font-size: 25px;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 20px;
+    }
+    *[class=user-pass] {
+        color: white;
+        font-size: 15px;
+        padding: 10px 8px;
+        border: 1px solid #5f6368;
+        border-radius: 6px;
+    }
+    *[class=user-pass]:focus {
+        border: 1px solid #8ab4f8;
+    }
+    #login-button {
+        color: black;
+        font-size: 15px;
+        font-weight: 600;
+        padding: 10px;
+        background-color: white;
+        border-radius: 6px;
+    }
+    #login-button:hover {
+        background-color: #dedede;
+    }
+    #error-label {
+        color: #f28b82;
+        font-size: 13px;
+        font-weight: bold;
+    }
+    """
+)
+
+# --- Show Window and Run Application ---
+window.show()
+sys.exit(app.exec())
