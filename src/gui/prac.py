@@ -33,6 +33,7 @@ class AdminWindow(QWidget):
         # Admin window layout
         admin_layout = QHBoxLayout(self)
         admin_layout.setContentsMargins(0, 0, 0, 0)
+        admin_layout.setSpacing(0)
         
         # Sidebar
         sidebar = QWidget()
@@ -74,19 +75,61 @@ class AdminWindow(QWidget):
         # Stacked widget
         self.contentStack = QStackedWidget()
         
-        # Dashboard page
+        # --- Dashboard page ---
         dashboard_page = QWidget()
         dashboard_layout = QVBoxLayout(dashboard_page)
-        dashboard_label = QLabel("This is dashboard.")
-        dashboard_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        dashboard_layout.addWidget(dashboard_label)
+        dashboard_layout.setContentsMargins(15, 15, 15, 15)
+        dashboard_layout.setSpacing(15)
         
-        # Train page
+        # Live camera card
+        camera_card = QWidget()
+        camera_card_layout = QVBoxLayout(camera_card)
+        camera_label = QLabel("Live Face Recognition Feed")
+        camera_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        camera_card_layout.addWidget(camera_label)
+        camera_card.setStyleSheet("background-color: #2a2b2e; border-radius: 6px;")
+        camera_card.setMinimumHeight(400)
+        
+        threshold_card = QWidget()
+        threshold_card_layout = QVBoxLayout(threshold_card)
+        threshold_label = QLabel("Threshold Adjustment")
+        threshold_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        threshold_card_layout.addWidget(threshold_label)
+        threshold_card.setStyleSheet("background-color: #2a2b2e; border-radius: 6px;")
+        threshold_card.setMaximumHeight(100)
+        
+        dashboard_layout.addWidget(camera_card)
+        dashboard_layout.addWidget(threshold_card)
+        dashboard_layout.addStretch()
+        
+        
+        # --- Train page ---
         train_page = QWidget()
         train_layout = QVBoxLayout(train_page)
-        train_label = QLabel("This is the training interface.")
-        train_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        train_layout.addWidget(train_label)
+        train_layout.setContentsMargins(15, 15, 15, 15)
+        train_layout.setSpacing(15)
+
+        # Placeholder for Camera Feed Card
+        train_camera_card = QWidget()
+        train_camera_card_layout = QVBoxLayout(train_camera_card)
+        train_camera_label = QLabel("Live Camera for Training")
+        train_camera_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        train_camera_card_layout.addWidget(train_camera_label)
+        train_camera_card.setStyleSheet("background-color: #2a2b2e; border-radius: 6px;")
+        train_camera_card.setMinimumHeight(400) # Example height
+
+        # Placeholder for Generic Card
+        train_info_card = QWidget()
+        train_info_card_layout = QVBoxLayout(train_info_card)
+        train_info_label = QLabel("Training Information/Controls")
+        train_info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        train_info_card_layout.addWidget(train_info_label)
+        train_info_card.setStyleSheet("background-color: #2a2b2e; border-radius: 6px;")
+        train_info_card.setMaximumHeight(100)
+
+        train_layout.addWidget(train_camera_card)
+        train_layout.addWidget(train_info_card)
+        train_layout.addStretch()
         
         # Settings page
         settings_page = QWidget()
