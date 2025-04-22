@@ -283,6 +283,7 @@ app.setStyleSheet(
     QWidget {
         background-color: #202124;
         font-family: "Consolas", "Courier New", monospace;
+        color: white;
     }
     #title {
         font-size: 25px;
