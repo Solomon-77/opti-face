@@ -1,1 +1,1 @@
-# run the app here
+from src.gui import prac
