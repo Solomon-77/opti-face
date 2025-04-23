@@ -16,6 +16,7 @@ class MainScreen(QWidget):
 
     def _setup_ui(self):
         current_user = SessionManager.get_user()
+        sidebarbuttons=[]
         cursor_pointer = QCursor(Qt.CursorShape.PointingHandCursor)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -38,13 +39,16 @@ class MainScreen(QWidget):
         self.dashboard_button.setProperty("class", "sidebar-buttons")
         self.dashboard_button.setCheckable(True)
         self.dashboard_button.setChecked(True)
-
-        self.train_button = QPushButton("Train")
-        self.train_button.setIcon(qta.icon('ph.camera'))
-        self.train_button.setIconSize(QSize(18, 18))
-        self.train_button.setCursor(cursor_pointer)
-        self.train_button.setProperty("class", "sidebar-buttons")
-        self.train_button.setCheckable(True)
+        sidebarbuttons.append(self.dashboard_button)
+        
+        if current_user and current_user.get("role") == "admin":
+            self.train_button = QPushButton("Train")
+            self.train_button.setIcon(qta.icon('ph.camera'))
+            self.train_button.setIconSize(QSize(18, 18))
+            self.train_button.setCursor(cursor_pointer)
+            self.train_button.setProperty("class", "sidebar-buttons")
+            self.train_button.setCheckable(True)
+            sidebarbuttons.append(self.train_button)
 
         self.settings_button = QPushButton("Settings")
         self.settings_button.setIcon(qta.icon('ri.settings-4-line'))
@@ -52,20 +56,18 @@ class MainScreen(QWidget):
         self.settings_button.setCursor(cursor_pointer)
         self.settings_button.setProperty("class", "sidebar-buttons")
         self.settings_button.setCheckable(True)
-            
+        sidebarbuttons.append(self.settings_button)
+
         self.logout_button = QPushButton("Log Out")
         self.logout_button.setIcon(qta.icon('ri.logout-box-line'))
         self.logout_button.setIconSize(QSize(18, 18))
         self.logout_button.setCursor(cursor_pointer)
         self.logout_button.setProperty("class", "sidebar-buttons")
         self.logout_button.clicked.connect(self.logout)
+        sidebarbuttons.append(self.logout_button)
 
-        if current_user and current_user.get("role") == "admin":
-            for btn in [self.dashboard_button, self.train_button, self.settings_button, self.logout_button]:
-                sidebar_layout.addWidget(btn)
-        else:
-            for btn in [self.dashboard_button, self.settings_button, self.logout_button]:
-                sidebar_layout.addWidget(btn)
+        for btn in sidebarbuttons:
+            sidebar_layout.addWidget(btn)
 
         sidebar_layout.addItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
