@@ -1,5 +1,4 @@
 import sys
-import qtawesome as qta
 from PyQt6.QtWidgets import (
     QApplication,
     QWidget,
@@ -11,7 +10,7 @@ from PyQt6.QtWidgets import (
     QStackedWidget,
 )
 from PyQt6.QtCore import Qt, QTimer, QSize
-from PyQt6.QtGui import QCursor
+from PyQt6.QtGui import QCursor, QIcon, QPixmap
 
 # --- Application Setup ---
 app = QApplication(sys.argv)
@@ -46,7 +45,6 @@ class AdminWindow(QWidget):
         
         # Dashboard button
         self.dashboard_button = QPushButton("Dashboard")
-        self.dashboard_button.setIcon(qta.icon('ri.dashboard-line'))
         self.dashboard_button.setIconSize(QSize(18, 18))
         self.dashboard_button.setCursor(cursor_pointer)
         self.dashboard_button.setProperty("class", "sidebar-buttons")
@@ -56,7 +54,6 @@ class AdminWindow(QWidget):
         
         # Train button
         self.train_button = QPushButton("Train")
-        self.train_button.setIcon(qta.icon('ph.camera'))
         self.train_button.setIconSize(QSize(18, 18))
         self.train_button.setCursor(cursor_pointer)
         self.train_button.setProperty("class", "sidebar-buttons")
@@ -65,7 +62,6 @@ class AdminWindow(QWidget):
         
         # Settings button
         self.settings_button = QPushButton("Settings")
-        self.settings_button.setIcon(qta.icon('ri.settings-4-line'))
         self.settings_button.setIconSize(QSize(18, 18))
         self.settings_button.setCursor(cursor_pointer)
         self.settings_button.setProperty("class", "sidebar-buttons")
@@ -194,23 +190,33 @@ class AdminWindow(QWidget):
         self._update_icon_color(self.settings_button)
         
     def _update_icon_color(self, button):
-        icon_name = ""
-        default_color = 'white'
-        checked_color = 'black'
+        icon_base_name = ""
+        icon_folder = "src/gui/icons"
 
         if button == self.dashboard_button:
-            icon_name = 'ri.dashboard-line'
+            icon_base_name = 'dashboard'
         elif button == self.train_button:
-            icon_name = 'ph.camera-light'
+            icon_base_name = 'camera'
         elif button == self.settings_button:
-            icon_name = 'ri.settings-4-line'
+            icon_base_name = 'settings'
 
-        if icon_name:
+        if icon_base_name:
             if button.isChecked():
-                button.setIcon(qta.icon(icon_name, color=checked_color))
+                icon_path = f"{icon_folder}/{icon_base_name}_black.svg"
             else:
-                button.setIcon(qta.icon(icon_name, color=default_color)) 
-        
+                icon_path = f"{icon_folder}/{icon_base_name}_white.svg"
+            
+            try:
+                icon = QIcon(QPixmap(icon_path))
+                if not icon.isNull():
+                    button.setIcon(icon)
+                else:
+                    print(f"Warning: Could not load icon from {icon_path}")
+                    button.setIcon(QIcon()) # Set an empty icon or a default one
+            except Exception as e:
+                print(f"Error loading icon {icon_path}: {e}")
+                button.setIcon(QIcon()) # Set an empty icon on error
+
 def login():
     if username.text() == ADMIN_USERNAME and password.text() == ADMIN_PASSWORD:
         global admin_window
