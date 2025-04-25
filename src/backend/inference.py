@@ -6,12 +6,15 @@ import queue
 import os
 import time
 from torch.nn.functional import cosine_similarity
-from utils.face_utils import detect_faces, align_face, load_face_recognition_model, transform
+from src.backend.utils.face_utils import detect_faces, align_face, load_face_recognition_model, transform
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
+from PyQt6.QtCore import QTimer, pyqtSignal, Qt
+from PyQt6.QtGui import QImage, QPixmap
 
 class FaceRecognitionPipeline:
     def __init__(self):
         self.model, self.device = load_face_recognition_model()
-        face_database_dir = './face_database/'
+        face_database_dir = './src/backend/face_database/'
         self.saved_embeddings = []
         self.saved_labels = []
         
@@ -163,25 +166,50 @@ class FaceRecognitionPipeline:
         self.running = False
         cv2.destroyAllWindows()
 
-def main():
-    pipeline = FaceRecognitionPipeline()
-    cap = cv2.VideoCapture(0)
+class CameraWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(0, 0, 0, 0)  # Remove widget's internal margins
+        self.camera_label = QLabel()
+        self.camera_label.setMinimumSize(640, 480)  # Set minimum size
+        self.camera_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  # Center the video feed
+        self.layout.addWidget(self.camera_label)
+        
+        self.pipeline = FaceRecognitionPipeline()
+        self.cap = cv2.VideoCapture(0)
+        
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_frame)
+        self.timer.start(30)  # Update every 30ms (approximately 33 FPS)
     
-    try:
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
-            
-            processed = pipeline.process_frame(frame)
+    def update_frame(self):
+        ret, frame = self.cap.read()
+        if ret:
+            processed = self.pipeline.process_frame(frame)
             if processed is not None:
-                cv2.imshow('Face Recognition', processed)
-            
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-    finally:
-        pipeline.cleanup()
-        cap.release()
+                rgb_image = cv2.cvtColor(processed, cv2.COLOR_BGR2RGB)
+                h, w, ch = rgb_image.shape
+                bytes_per_line = ch * w
+                qt_image = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
+                
+                # Scale to fill the label while maintaining aspect ratio
+                scaled_pixmap = QPixmap.fromImage(qt_image).scaled(
+                    self.camera_label.width(),
+                    self.camera_label.height(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+                self.camera_label.setPixmap(scaled_pixmap)
+
+    def closeEvent(self, event):
+        self.pipeline.cleanup()
+        self.cap.release()
+        super().closeEvent(event)
+
+def main():
+    """Removed standalone window code as it's now integrated with PyQt6"""
+    pass
 
 if __name__ == "__main__":
     main()

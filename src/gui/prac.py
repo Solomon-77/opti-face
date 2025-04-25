@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QTimer, QSize
 from PyQt6.QtGui import QCursor, QIcon, QPixmap
+from src.backend.inference import CameraWidget
 
 # --- Application Setup ---
 app = QApplication(sys.argv)
@@ -80,11 +81,13 @@ class AdminWindow(QWidget):
         # Live camera card
         camera_card = QWidget()
         camera_card_layout = QVBoxLayout(camera_card)
+        camera_card_layout.setContentsMargins(15, 15, 15, 15)  # Add padding inside the card
         camera_label = QLabel("Live Face Recognition Feed")
         camera_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        camera_widget = CameraWidget()
         camera_card_layout.addWidget(camera_label)
+        camera_card_layout.addWidget(camera_widget)  # Removed stretch factor to let it size naturally
         camera_card.setStyleSheet("background-color: #2a2b2e; border-radius: 6px;")
-        camera_card.setMinimumHeight(400)
         
         threshold_card = QWidget()
         threshold_card_layout = QVBoxLayout(threshold_card)

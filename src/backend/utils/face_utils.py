@@ -7,11 +7,11 @@ import os
 import warnings
 warnings.filterwarnings("ignore")
 from torchvision import transforms
-from utils.scrfd import FaceDetector
-from utils.edgeface import get_model
+from src.backend.utils.scrfd import FaceDetector
+from src.backend.utils.edgeface import get_model
 
 # Initialize face detector and MediaPipe FaceMesh
-face_detector = FaceDetector(onnx_file='checkpoints/scrfd_500m.onnx')
+face_detector = FaceDetector(onnx_file='src/backend/checkpoints/scrfd_500m.onnx')
 mp_face_mesh = mp.solutions.face_mesh.FaceMesh(
     static_image_mode=True,
     max_num_faces=1,
@@ -42,7 +42,7 @@ LANDMARK_GROUPS = [
     [([291, 321, 314], [292, 317, 375, 407, 408, 318, 325, 308, 409, 310, 311])]
 ]
 
-def load_face_recognition_model(model_path="checkpoints/edgeface_s_gamma_05.pt"):
+def load_face_recognition_model(model_path="src/backend/checkpoints/edgeface_s_gamma_05.pt"):
     # Automatically infer model name from the file name
     model_name = os.path.splitext(os.path.basename(model_path))[0]
     
