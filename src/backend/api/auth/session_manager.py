@@ -1,5 +1,5 @@
 import os
-from backend.api.auth.encryption.aes256 import encrypt_data, decrypt_data
+from src.backend.api.auth.encryption.aes256 import encrypt_data, decrypt_data
 
 SESSION_FILE = os.path.join(os.path.expanduser("~"), ".app_session.json")
 

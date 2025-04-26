@@ -6,12 +6,15 @@ import queue
 import os
 import time
 from torch.nn.functional import cosine_similarity
-from utils.face_utils import detect_faces, align_face, load_face_recognition_model, transform
+from src.backend.utils.face_utils import detect_faces, align_face, load_face_recognition_model, transform
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QStackedLayout
+from PyQt6.QtCore import QTimer, pyqtSignal, Qt
+from PyQt6.QtGui import QImage, QPixmap, QColor
 
 class FaceRecognitionPipeline:
     def __init__(self):
         self.model, self.device = load_face_recognition_model()
-        face_database_dir = './face_database/'
+        face_database_dir = './src/backend/face_database/'
         self.saved_embeddings = []
         self.saved_labels = []
         
@@ -84,7 +87,7 @@ class FaceRecognitionPipeline:
                 with self.lock:
                     if face_id in self.results:
                         self.results[face_id].update({
-                            'name': self.saved_labels[best_idx] if best_score > 0.6 else "Unknown",
+                            'name': self.saved_labels[best_idx] if best_score > self.recognition_threshold else "Unknown",
                             'similarity': best_score,
                             'last_seen': self.frame_count
                         })
@@ -93,8 +96,9 @@ class FaceRecognitionPipeline:
             except Exception as e:
                 print(f"Recognition error: {e}")
 
-    def process_frame(self, frame):
+    def process_frame(self, frame, recognition_threshold=0.6):
         """Detect, align, and recognize faces in a video frame."""
+        self.recognition_threshold = recognition_threshold  # Store the threshold
         if not isinstance(frame, np.ndarray) or frame.size == 0:
             return frame
             
@@ -163,25 +167,84 @@ class FaceRecognitionPipeline:
         self.running = False
         cv2.destroyAllWindows()
 
-def main():
-    pipeline = FaceRecognitionPipeline()
-    cap = cv2.VideoCapture(0)
-    
-    try:
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
-            
-            processed = pipeline.process_frame(frame)
-            if processed is not None:
-                cv2.imshow('Face Recognition', processed)
-            
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-    finally:
-        pipeline.cleanup()
-        cap.release()
+class CameraWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.camera_label = QLabel()
+        self.camera_label.setMinimumSize(640, 480)
+        self.camera_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.camera_label.setStyleSheet("background-color: black;") # Default background
+        self.layout.addWidget(self.camera_label)
 
-if __name__ == "__main__":
-    main()
+        self.pipeline = FaceRecognitionPipeline()
+        self.cap = cv2.VideoCapture(0)
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_frame)
+        # Do not start the timer here automatically
+        # self.timer.start(30)
+
+        # Placeholder text when feed is off
+        self.placeholder_label = QLabel("Camera Feed Off")
+        self.placeholder_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.placeholder_label.setStyleSheet("color: white; font-size: 16px;")
+        self.placeholder_label.setMinimumSize(640, 480) # Match camera label size
+        self.placeholder_label.hide() # Hide initially
+
+        # Use a stacked layout to switch between camera feed and placeholder
+        self.stacked_layout = QStackedLayout()
+        self.stacked_layout.addWidget(self.camera_label)
+        self.stacked_layout.addWidget(self.placeholder_label)
+        self.layout.addLayout(self.stacked_layout) # Add stacked layout to main layout
+
+        self.stacked_layout.setCurrentWidget(self.placeholder_label) # Show placeholder initially
+
+        self.recognition_threshold = 0.6  # Add default threshold
+
+    def set_recognition_threshold(self, threshold):
+        """Sets the recognition threshold value."""
+        self.recognition_threshold = threshold
+
+    def start_feed(self):
+        """Starts the camera feed update timer."""
+        if not self.timer.isActive():
+            self.stacked_layout.setCurrentWidget(self.camera_label) # Show camera label
+            self.timer.start(30)
+
+    def stop_feed(self):
+        """Stops the camera feed update timer and shows placeholder."""
+        if self.timer.isActive():
+            self.timer.stop()
+            # Clear the label or set a placeholder image/text
+            # Create a black pixmap
+            black_pixmap = QPixmap(self.camera_label.size())
+            black_pixmap.fill(QColor('black'))
+            self.camera_label.setPixmap(black_pixmap)
+            self.stacked_layout.setCurrentWidget(self.placeholder_label) # Show placeholder
+
+    def update_frame(self):
+        ret, frame = self.cap.read()
+        if ret:
+            processed = self.pipeline.process_frame(frame, self.recognition_threshold)  # Pass threshold
+            if processed is not None:
+                rgb_image = cv2.cvtColor(processed, cv2.COLOR_BGR2RGB)
+                h, w, ch = rgb_image.shape
+                bytes_per_line = ch * w
+                qt_image = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
+                
+                # Scale to fill the label while maintaining aspect ratio
+                scaled_pixmap = QPixmap.fromImage(qt_image).scaled(
+                    self.camera_label.width(),
+                    self.camera_label.height(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+                self.camera_label.setPixmap(scaled_pixmap)
+
+    def closeEvent(self, event):
+        self.stop_feed() # Ensure feed is stopped
+        self.pipeline.cleanup()
+        self.cap.release()
+        super().closeEvent(event)

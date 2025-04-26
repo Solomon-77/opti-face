@@ -1,9 +1,9 @@
 import sys
 from PyQt6.QtWidgets import QApplication
-from gui.login.login_page import LoginWindow
-from gui.mainscreen.mainpage import MainScreen
-from backend.api.auth.auth_functons import verify_auth_credentials
-from backend.api.auth.session_manager import SessionManager
+from src.gui.login.login_page import LoginWindow
+from src.gui.mainscreen.mainpage import MainScreen
+from src.backend.api.auth.auth_functons import verify_auth_credentials
+from src.backend.api.auth.session_manager import SessionManager
 
 class AppController:
     def __init__(self):

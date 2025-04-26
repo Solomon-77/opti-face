@@ -1,6 +1,6 @@
-from backend.api.db.db_connection import connect_to_db
-from backend.api.auth.hashing.argon2id_functions import verify_password
-from backend.api.auth.session_manager import SessionManager 
+from src.backend.api.db.db_connection import connect_to_db
+from src.backend.api.auth.hashing.argon2id_functions import verify_password
+from src.backend.api.auth.session_manager import SessionManager 
 
 def verify_auth_credentials(name: str, pw: str) -> bool:
     conn = connect_to_db()

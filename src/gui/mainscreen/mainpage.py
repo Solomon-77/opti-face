@@ -1,10 +1,11 @@
 import qtawesome as qta
 from PyQt6.QtWidgets import (
-    QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QStackedWidget, QSpacerItem, QSizePolicy
+    QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QStackedWidget, QSpacerItem, QSizePolicy
 )
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QCursor
-from backend.api.auth.session_manager import SessionManager
+from src.backend.api.auth.session_manager import SessionManager
+from src.backend.inference import CameraWidget
 
 class MainScreen(QWidget):
     def __init__(self, logout_callback):
@@ -111,23 +112,127 @@ class MainScreen(QWidget):
 
         self._update_icon_colors()
 
+
     def _build_dashboard_page(self):
         page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(15, 15, 15, 15)
-        layout.setSpacing(15)
+        dashboard_layout = QVBoxLayout(page)
+        dashboard_layout.setContentsMargins(15, 15, 15, 15)
+        dashboard_layout.setSpacing(15)
 
-        camera_card = QLabel("Live Face Recognition Feed")
-        camera_card.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        camera_card.setStyleSheet("background-color: #2a2b2e; border-radius: 6px; min-height: 400px;")
+        # Live camera card
+        camera_card = QWidget()
+        camera_card_layout = QVBoxLayout(camera_card)
+        camera_card_layout.setContentsMargins(15, 15, 15, 15)
+        camera_card_layout.setSpacing(15)
 
-        threshold_card = QLabel("Threshold Adjustment")
-        threshold_card.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        threshold_card.setStyleSheet("background-color: #2a2b2e; border-radius: 6px; max-height: 100px;")
+        # Top row for label and button
+        camera_top_layout = QHBoxLayout()
+        camera_label = QLabel("Live Face Recognition Feed")
+        camera_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        camera_label.setObjectName("camera-label")
 
-        layout.addWidget(camera_card)
-        layout.addWidget(threshold_card)
-        layout.addStretch()
+        cursor_pointer = QCursor(Qt.CursorShape.PointingHandCursor)  # Pointer cursor for the button
+        self.toggle_feed_button = QPushButton("Start Feed")
+        self.toggle_feed_button.setCursor(cursor_pointer)
+        self.toggle_feed_button.setFixedWidth(100)
+        self.toggle_feed_button.clicked.connect(self.toggle_feed)
+        self.toggle_feed_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                font-weight: bold;
+                border: none;
+                border-radius: 4px;
+                padding: 8px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """)
+
+        # Arrange the top layout (label and button)
+        camera_top_layout.addWidget(camera_label)
+        camera_top_layout.addStretch()  # Push button to the right
+        camera_top_layout.addWidget(self.toggle_feed_button)
+
+        # Camera widget
+        self.camera_widget = CameraWidget()
+        self.camera_widget.setStyleSheet("background-color: #2a2b2e; border-radius: 6px;")  # Optional style for background
+        self.camera_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)  # Allow camera widget to expand
+
+        # Add the top row layout and camera widget to the camera card
+        camera_card_layout.addLayout(camera_top_layout)
+        camera_card_layout.addWidget(self.camera_widget)
+        camera_card.setStyleSheet("background-color: #2a2b2e; border-radius: 6px;")
+        camera_card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)  # Allow card to expand vertically
+
+        # Threshold card
+        threshold_card = QWidget()
+        threshold_card_layout = QHBoxLayout(threshold_card)
+        threshold_card_layout.setContentsMargins(15, 10, 15, 10)  # Adjust margins if needed
+        threshold_card_layout.setSpacing(10)  # Add spacing between elements
+
+        threshold_label = QLabel("Minimum Face Recognition Threshold:")  # Changed label text slightly
+        threshold_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)  # Align left
+
+        self.threshold_input = QLineEdit()
+        self.threshold_input.setPlaceholderText("0.0-1.0")  # Shortened placeholder
+        self.threshold_input.setText("0.6")  # Default value
+        self.threshold_input.setFixedWidth(80)  # Adjust width as needed
+
+        self.apply_threshold = QPushButton("Apply")
+        self.apply_threshold.setCursor(cursor_pointer)
+        self.apply_threshold.setFixedWidth(80)  # Adjust width as needed
+        self.apply_threshold.clicked.connect(self.update_threshold)
+        self.apply_threshold.setStyleSheet("""
+            QPushButton {
+                padding: 5px;
+                background-color: #4CAF50; /* Green background */
+                color: white;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #45a049; /* Darker green on hover */
+            }
+        """)
+
+        # Add widgets directly to the horizontal card layout
+        threshold_card_layout.addWidget(threshold_label)
+        threshold_card_layout.addWidget(self.threshold_input)
+        threshold_card_layout.addWidget(self.apply_threshold)
+        threshold_card_layout.addStretch()  # Push elements to the left
+
+        # Apply additional styles for the threshold card
+        threshold_card.setStyleSheet("""
+            QWidget { /* Apply to the card itself */
+                background-color: #2a2b2e;
+                border-radius: 6px;
+            }
+            QLabel { /* Style label within the card */
+                font-size: 13px; /* Adjust as needed */
+                font-weight: 600;
+            }
+            QLineEdit { /* Style input within the card */
+                padding: 5px;
+                border: 1px solid #5f6368;
+                border-radius: 4px;
+                background-color: #3a3b3e; /* Slightly different background */
+                color: white;
+            }
+            QLineEdit:focus {
+                border: 1px solid #8ab4f8;
+            }
+            /* Button styling is now handled inline above */
+        """)
+
+        # Adjust max height for the threshold card
+        threshold_card.setMaximumHeight(60)  # Adjust max height if needed
+
+        # Add the camera card and threshold card to the dashboard layout
+        dashboard_layout.addWidget(camera_card)
+        dashboard_layout.addWidget(threshold_card)
+
         return page
 
     def _build_train_page(self):
@@ -159,7 +264,8 @@ class MainScreen(QWidget):
 
     def _switch_page(self, index, button):
         self.dashboard_button.setChecked(False)
-        self.train_button.setChecked(False)
+        if hasattr(self, "train_button"):
+            self.train_button.setChecked(False)
         self.settings_button.setChecked(False)
 
         button.setChecked(True)
@@ -183,3 +289,22 @@ class MainScreen(QWidget):
         SessionManager.clear_user()
         self.close()
         self.logout_callback()
+
+    def toggle_feed(self):
+        """Toggles the camera feed on or off."""
+        if self.toggle_feed_button.text() == "Start Feed":
+            self.camera_widget.start_feed()  # Start the camera feed
+            self.toggle_feed_button.setText("Stop Feed")  # Change button text to "Stop Feed"
+        else:
+            self.camera_widget.stop_feed()  # Stop the camera feed
+            self.toggle_feed_button.setText("Start Feed")  # Change button text to "Start Feed"
+
+    def update_threshold(self):
+        """Updates the face recognition threshold."""
+        threshold_value = self.threshold_input.text()
+        try:
+            threshold_value = float(threshold_value)
+            if 0.0 <= threshold_value <= 1.0:
+                self.camera_widget.set_recognition_threshold(threshold_value)  # Update threshold in CameraWidget
+        except ValueError:
+            pass  # Ignore invalid threshold input
