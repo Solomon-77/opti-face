@@ -193,25 +193,67 @@ class AdminWindow(QWidget):
         train_layout.setContentsMargins(15, 15, 15, 15)
         train_layout.setSpacing(15)
 
-        # Placeholder for Camera Feed Card
-        train_camera_card = QWidget()
-        train_camera_card_layout = QVBoxLayout(train_camera_card)
-        train_camera_label = QLabel("Live Camera for Training")
-        train_camera_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        train_camera_card_layout.addWidget(train_camera_label)
-        train_camera_card.setStyleSheet("background-color: #2a2b2e; border-radius: 6px;")
-        train_camera_card.setMinimumHeight(400) # Example height
+        # --- Upload Card ---
+        upload_card = QWidget()
+        upload_card_layout = QVBoxLayout(upload_card)
+        upload_card_layout.setContentsMargins(15, 15, 15, 15)
+        upload_card_layout.setSpacing(10)
+        upload_card.setStyleSheet("background-color: #2a2b2e; border-radius: 6px;")
 
-        # Placeholder for Generic Card
+        upload_label = QLabel("Add New Person to Database")
+        upload_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        upload_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px;")
+        upload_card_layout.addWidget(upload_label)
+
+        # File selection row
+        file_selection_layout = QHBoxLayout()
+        self.upload_image_button = QPushButton("Upload Image")
+        self.upload_image_button.setCursor(cursor_pointer)
+        # Add styling as needed
+        self.upload_video_button = QPushButton("Upload Video")
+        self.upload_video_button.setCursor(cursor_pointer)
+        # Add styling as needed
+        file_selection_layout.addWidget(self.upload_image_button)
+        file_selection_layout.addWidget(self.upload_video_button)
+        upload_card_layout.addLayout(file_selection_layout)
+
+        # Name input row
+        name_input_layout = QHBoxLayout()
+        name_label = QLabel("Person's Name:")
+        self.person_name_input = QLineEdit()
+        self.person_name_input.setPlaceholderText("Enter name")
+        # Add styling as needed
+        name_input_layout.addWidget(name_label)
+        name_input_layout.addWidget(self.person_name_input)
+        upload_card_layout.addLayout(name_input_layout)
+
+        # Add Person button
+        self.add_person_button = QPushButton("Add Person")
+        self.add_person_button.setCursor(cursor_pointer)
+        self.add_person_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50; color: white; font-weight: bold;
+                border: none; border-radius: 4px; padding: 8px; margin-top: 10px;
+            }
+            QPushButton:hover { background-color: #45a049; }
+        """)
+        # self.add_person_button.clicked.connect(self.add_person_action) # Connect to actual function later
+        upload_card_layout.addWidget(self.add_person_button)
+
+        upload_card_layout.addStretch() # Push content upwards
+        upload_card.setMinimumHeight(250) # Adjust height as needed
+
+        # --- Training Status Card ---
         train_info_card = QWidget()
         train_info_card_layout = QVBoxLayout(train_info_card)
-        train_info_label = QLabel("Training Information/Controls")
+        train_info_label = QLabel("Training Status") # Changed label
         train_info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Add more widgets here later to show progress/status
         train_info_card_layout.addWidget(train_info_label)
         train_info_card.setStyleSheet("background-color: #2a2b2e; border-radius: 6px;")
-        train_info_card.setMaximumHeight(100)
+        train_info_card.setMaximumHeight(150) # Adjust height
 
-        train_layout.addWidget(train_camera_card)
+        train_layout.addWidget(upload_card) # Add the new upload card
         train_layout.addWidget(train_info_card)
         train_layout.addStretch()
 
