@@ -16,6 +16,8 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
     QFileDialog,
     QMessageBox,
+    QScrollArea, # Added
+    QFrame,      # Added for separators
 )
 from PyQt6.QtCore import Qt, QTimer, QSize
 from PyQt6.QtGui import QCursor, QIcon, QPixmap
@@ -34,6 +36,105 @@ cursor_pointer = QCursor(Qt.CursorShape.PointingHandCursor)
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
 
+# --- Person Entry Widget ---
+class PersonEntryWidget(QWidget):
+    """Widget for entering details for a single person."""
+    def __init__(self, parent_admin_window):
+        super().__init__()
+        self.parent_admin_window = parent_admin_window
+        self.selected_image_paths = []
+        self.selected_video_path = None
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 10, 10, 10)  # Changed left margin to 0
+        layout.setSpacing(10) # Keep existing spacing between main elements
+        self.setStyleSheet("background-color: #2a2b2e; border-radius: 6px;")
+
+        # File selection row
+        file_selection_layout = QHBoxLayout()
+        file_selection_layout.setContentsMargins(0, 0, 0, 0)  # Added this line
+        self.upload_image_button = QPushButton("Select Image")
+        self.upload_image_button.setCursor(cursor_pointer)
+        self.upload_image_button.clicked.connect(lambda: self.parent_admin_window.select_images(self))
+        # Add styling for the image button
+        self.upload_image_button.setStyleSheet("""
+            QPushButton {
+                background-color: #5f6368; color: white;
+                border: none; border-radius: 4px; padding: 6px 10px;
+            }
+            QPushButton:hover { background-color: #707478; }
+        """)
+
+        self.upload_video_button = QPushButton("Select Video")
+        self.upload_video_button.setCursor(cursor_pointer)
+        self.upload_video_button.clicked.connect(lambda: self.parent_admin_window.select_video(self))
+        # Add styling for the video button
+        self.upload_video_button.setStyleSheet("""
+            QPushButton {
+                background-color: #5f6368; color: white;
+                border: none; border-radius: 4px; padding: 6px 10px;
+            }
+            QPushButton:hover { background-color: #707478; }
+        """)
+
+        self.selected_files_label = QLabel("No files selected.")
+        # Remove padding and explicitly set background to none
+        self.selected_files_label.setStyleSheet("font-size: 11px; color: #aaa; background: none;")
+
+        # Add remove button to file selection row
+        self.remove_button = QPushButton("Remove")  # Using × symbol for delete
+        self.remove_button.setCursor(cursor_pointer)
+        self.remove_button.setStyleSheet("""
+            QPushButton {
+                background-color: #f44336; 
+                color: white; 
+                font-weight: bold;
+                border: none; 
+                border-radius: 4px; 
+                padding: 5px 10px;
+            }
+            QPushButton:hover { background-color: #da190b; }
+        """)
+        self.remove_button.clicked.connect(lambda: self.parent_admin_window.remove_person_entry_widget(self))
+
+        file_selection_layout.addWidget(self.upload_image_button)
+        file_selection_layout.addWidget(self.upload_video_button)
+        file_selection_layout.addWidget(self.selected_files_label)
+        file_selection_layout.addStretch()
+        file_selection_layout.addWidget(self.remove_button)
+        layout.addLayout(file_selection_layout)
+
+        # Add spacing after file selection row
+        layout.addSpacing(10) # Adjust the value (10) as needed
+
+        # Name input row
+        name_input_layout = QHBoxLayout()
+        name_label = QLabel("Person's Name:")
+        # Make label bold and remove background
+        name_label.setStyleSheet("background: none; font-weight: bold;")
+        self.person_name_input = QLineEdit()
+        self.person_name_input.setPlaceholderText("Enter name")
+        # Add styling similar to previous input fields if needed
+        self.person_name_input.setStyleSheet("""
+            QLineEdit {
+                padding: 5px; border: 1px solid #5f6368; border-radius: 4px;
+                background-color: #3a3b3e; color: white;
+            }
+            QLineEdit:focus { border: 1px solid #8ab4f8; }
+        """)
+        name_input_layout.addWidget(name_label)
+        name_input_layout.addWidget(self.person_name_input)
+        layout.addLayout(name_input_layout)
+
+        # Add spacing after name input row
+        layout.addSpacing(10) # Adjust the value (10) as needed
+
+        # Status label
+        self.train_status_label = QLabel("")
+        self.train_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.train_status_label.setStyleSheet("font-size: 12px; font-weight: bold; min-height: 18px;") # Added min-height
+        layout.addWidget(self.train_status_label)
+
 # Admin window
 class AdminWindow(QWidget):
     def __init__(self):
@@ -41,9 +142,8 @@ class AdminWindow(QWidget):
         self.setWindowTitle("Admin Screen")
         self.resize(900, 600)
         self.is_feed_running = False # Track feed state
-        self.selected_image_paths = [] # To store paths of images selected for upload
-        self.selected_video_path = None # To store path of selected video
         self.face_database_dir = './src/backend/face_database/' # Define database path
+        self.person_entry_widgets = [] # List to hold PersonEntryWidget instances
 
         # Load the face recognition model once for training tasks
         # Handle potential errors during model loading
@@ -216,91 +316,59 @@ class AdminWindow(QWidget):
 
         # --- Train page ---
         train_page = QWidget()
-        train_layout = QVBoxLayout(train_page)
-        train_layout.setContentsMargins(15, 15, 15, 15)
-        train_layout.setSpacing(15)
+        train_main_layout = QVBoxLayout(train_page) # Main layout for the page
+        train_main_layout.setContentsMargins(25, 25, 25, 25)
+        train_main_layout.setSpacing(15)
 
-        # --- Upload Card ---
-        upload_card = QWidget()
-        upload_card_layout = QVBoxLayout(upload_card)
-        upload_card_layout.setContentsMargins(15, 15, 15, 15)
-        upload_card_layout.setSpacing(10)
-        upload_card.setStyleSheet("background-color: #2a2b2e; border-radius: 6px;")
+        # Button to add new person entries
+        self.add_person_entry_button = QPushButton("+ Add Person")
+        self.add_person_entry_button.setCursor(cursor_pointer)
+        self.add_person_entry_button.setStyleSheet("""
+            QPushButton {
+                background-color: #8ab4f8; color: black; font-weight: bold;
+                border: none; border-radius: 4px; padding: 8px; max-width: 150px;
+            }
+            QPushButton:hover { background-color: #9ac0f9; }
+        """)
+        self.add_person_entry_button.clicked.connect(self.add_person_entry_widget)
+        train_main_layout.addWidget(self.add_person_entry_button, alignment=Qt.AlignmentFlag.AlignLeft) # Add button to main layout
 
-        upload_label = QLabel("Add New Person to Database")
-        upload_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        upload_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px;")
-        upload_card_layout.addWidget(upload_label)
+        # Scroll Area for Person Entries
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setStyleSheet("QScrollArea { border: none; background-color: #202124; }") # Style scroll area
 
-        # File selection row
-        file_selection_layout = QHBoxLayout()
-        self.upload_image_button = QPushButton("Select Images")
-        self.upload_image_button.setCursor(cursor_pointer)
-        self.upload_image_button.clicked.connect(self.select_images)
+        # Container widget inside Scroll Area
+        self.scroll_content_widget = QWidget()
+        self.scroll_area.setWidget(self.scroll_content_widget)
 
-        self.upload_video_button = QPushButton("Select Video") # Added video button
-        self.upload_video_button.setCursor(cursor_pointer)
-        self.upload_video_button.clicked.connect(self.select_video) # Connect signal
+        # Layout for the container widget (holds PersonEntryWidgets)
+        self.person_entries_layout = QVBoxLayout(self.scroll_content_widget)
+        self.person_entries_layout.setContentsMargins(0, 0, 0, 0) # No margins for the inner layout
+        self.person_entries_layout.setSpacing(10) # Spacing between person entries
+        self.person_entries_layout.setAlignment(Qt.AlignmentFlag.AlignTop) # Align entries to the top
 
-        file_selection_layout.addWidget(self.upload_image_button)
-        file_selection_layout.addWidget(self.upload_video_button) # Add video button to layout
+        train_main_layout.addWidget(self.scroll_area) # Add scroll area to main layout
 
-        # Label to show selected file count or video name
-        self.selected_files_label = QLabel("No files selected.")
-        self.selected_files_label.setStyleSheet("font-size: 11px; color: #aaa;") # Basic styling
-        file_selection_layout.addWidget(self.selected_files_label)
-        file_selection_layout.addStretch() # Push label and button
-
-        upload_card_layout.addLayout(file_selection_layout)
-
-        # Name input row
-        name_input_layout = QHBoxLayout()
-        name_label = QLabel("Person's Name:")
-        self.person_name_input = QLineEdit()
-        self.person_name_input.setPlaceholderText("Enter name")
-        # Add styling as needed
-        name_input_layout.addWidget(name_label)
-        name_input_layout.addWidget(self.person_name_input)
-        upload_card_layout.addLayout(name_input_layout)
-
-        # Add Person button
-        self.add_person_button = QPushButton("Add Person and Train") # Changed text
-        self.add_person_button.setCursor(cursor_pointer)
-        self.add_person_button.setStyleSheet("""
+        # Add the "Train All" button below the scroll area
+        self.train_all_button = QPushButton("Train All Added Persons")
+        self.train_all_button.setCursor(cursor_pointer)
+        self.train_all_button.setStyleSheet("""
             QPushButton {
                 background-color: #4CAF50; color: white; font-weight: bold;
-                border: none; border-radius: 4px; padding: 8px; margin-top: 10px;
+                border: none; border-radius: 4px; padding: 10px; margin-top: 10px;
             }
             QPushButton:hover { background-color: #45a049; }
         """)
-        self.add_person_button.clicked.connect(self.add_person_action) # Connect signal
-        upload_card_layout.addWidget(self.add_person_button)
+        self.train_all_button.clicked.connect(self.train_all_persons_action)
+        self.train_all_button.setMaximumWidth(200)
+        # Add button with center alignment
+        train_main_layout.addWidget(self.train_all_button, alignment=Qt.AlignmentFlag.AlignCenter) # Center align
 
-        # Status label for training feedback
-        self.train_status_label = QLabel("")
-        self.train_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.train_status_label.setStyleSheet("font-size: 12px; font-weight: bold;")
-        upload_card_layout.addWidget(self.train_status_label)
+        # Add the first entry widget automatically
+        self.add_person_entry_widget()
 
-
-        upload_card_layout.addStretch() # Push content upwards
-        upload_card.setMinimumHeight(250) # Adjust height as needed
-
-        # --- Training Status Card (Optional - can be merged or removed) ---
-        train_info_card = QWidget()
-        train_info_card_layout = QVBoxLayout(train_info_card)
-        train_info_label = QLabel("Training Status") # Changed label
-        train_info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        # Add more widgets here later to show progress/status
-        train_info_card_layout.addWidget(train_info_label)
-        train_info_card.setStyleSheet("background-color: #2a2b2e; border-radius: 6px;")
-        train_info_card.setMaximumHeight(150) # Adjust height
-
-        train_layout.addWidget(upload_card) # Add the upload card
-        # train_layout.addWidget(train_info_card) # Keep or remove
-        train_layout.addStretch()
-
-        # Settings page
+        # --- Settings page ---
         settings_page = QWidget()
         settings_layout = QVBoxLayout(settings_page)
         settings_label = QLabel("This is settings.")
@@ -372,8 +440,66 @@ class AdminWindow(QWidget):
         self._update_icon_color(self.train_button)
         self._update_icon_color(self.settings_button)
 
-    def select_images(self):
-        """Opens a file dialog to select multiple image files."""
+    def add_person_entry_widget(self):
+        """Creates and adds a new PersonEntryWidget to the scroll area."""
+        entry_widget = PersonEntryWidget(self)
+        self.person_entries_layout.addWidget(entry_widget)
+        self.person_entry_widgets.append(entry_widget)
+        # Optional: Add a separator line if more than one widget exists
+        # Insert separator before the last added widget
+        if self.person_entries_layout.count() > 1: # Check if more than one widget exists *before* adding separator
+             # Find the widget added just before this one
+             previous_widget_index = self.person_entries_layout.count() - 2
+             # Check if the item at that index is indeed a PersonEntryWidget (not already a separator)
+             item = self.person_entries_layout.itemAt(previous_widget_index)
+             if item and isinstance(item.widget(), PersonEntryWidget):
+                 separator = QFrame()
+                 separator.setFrameShape(QFrame.Shape.HLine)
+                 separator.setFrameShadow(QFrame.Shadow.Sunken)
+                 separator.setStyleSheet("border: 1px solid #3a3b3e;") # Basic styling
+                 # Insert separator *before* the newly added widget
+                 self.person_entries_layout.insertWidget(self.person_entries_layout.count() - 1, separator)
+
+
+    def remove_person_entry_widget(self, target_widget: PersonEntryWidget):
+        """Removes a specific PersonEntryWidget and its preceding separator."""
+        if target_widget in self.person_entry_widgets:
+            try:
+                # Find the index of the target widget in the layout
+                index = self.person_entries_layout.indexOf(target_widget)
+
+                # Remove the widget itself
+                self.person_entries_layout.removeWidget(target_widget)
+                target_widget.deleteLater()
+                self.person_entry_widgets.remove(target_widget)
+                print(f"Removed person entry widget.")
+
+                # Check if there's a separator *before* this widget (index > 0)
+                if index > 0:
+                    item_before = self.person_entries_layout.itemAt(index - 1)
+                    if item_before and isinstance(item_before.widget(), QFrame):
+                        separator_widget = item_before.widget()
+                        self.person_entries_layout.removeWidget(separator_widget)
+                        separator_widget.deleteLater()
+                        print("Removed preceding separator.")
+                # Check if there's a separator *after* this widget (if it was the last actual entry)
+                # This handles removing the separator when the *last* entry is removed
+                elif index == 0 and self.person_entries_layout.count() > 0: # If it was the first item and there's still something left
+                     item_after = self.person_entries_layout.itemAt(0) # Check the new first item
+                     if item_after and isinstance(item_after.widget(), QFrame):
+                         separator_widget = item_after.widget()
+                         self.person_entries_layout.removeWidget(separator_widget)
+                         separator_widget.deleteLater()
+                         print("Removed succeeding separator (was first item).")
+
+
+            except Exception as e:
+                print(f"Error removing widget: {e}")
+                # Optionally show a message box
+                QMessageBox.warning(self, "Error", f"Could not remove the entry: {e}")
+
+    def select_images(self, target_widget: PersonEntryWidget):
+        """Opens a file dialog to select multiple image files for a specific person entry."""
         # Define supported image file extensions
         image_extensions = "*.png *.jpg *.jpeg *.bmp *.tiff"
         files, _ = QFileDialog.getOpenFileNames(
@@ -383,18 +509,18 @@ class AdminWindow(QWidget):
             f"Image Files ({image_extensions});;All Files (*)"
         )
         if files:
-            self.selected_image_paths = files
-            self.selected_video_path = None # Clear video selection if images are selected
-            self.selected_files_label.setText(f"{len(files)} image(s) selected.")
-            print(f"Selected images: {files}")
+            target_widget.selected_image_paths = files
+            target_widget.selected_video_path = None # Clear video selection
+            target_widget.selected_files_label.setText(f"{len(files)} image(s) selected.")
+            print(f"Selected images for widget: {files}")
         else:
-            # If selection is cancelled or empty, reset
-            # self.selected_image_paths = [] # Keep previous selection? Or clear? Let's clear.
-            # self.selected_files_label.setText("No files selected.")
-            print("No images selected.")
+            # Decide if clearing is desired on cancellation
+            # target_widget.selected_image_paths = []
+            # target_widget.selected_files_label.setText("No files selected.")
+            print("No images selected for widget.")
 
-    def select_video(self):
-        """Opens a file dialog to select a single video file."""
+    def select_video(self, target_widget: PersonEntryWidget):
+        """Opens a file dialog to select a single video file for a specific person entry."""
         # Define supported video file extensions
         video_extensions = "*.mp4 *.avi *.mov *.mkv"
         file, _ = QFileDialog.getOpenFileName(
@@ -404,63 +530,88 @@ class AdminWindow(QWidget):
             f"Video Files ({video_extensions});;All Files (*)"
         )
         if file:
-            self.selected_video_path = file
-            self.selected_image_paths = [] # Clear image selection if video is selected
-            self.selected_files_label.setText(f"Video: {os.path.basename(file)}")
-            print(f"Selected video: {file}")
+            target_widget.selected_video_path = file
+            target_widget.selected_image_paths = [] # Clear image selection
+            target_widget.selected_files_label.setText(f"Video: {os.path.basename(file)}")
+            print(f"Selected video for widget: {file}")
         else:
-            print("No video selected.")
+            print("No video selected for widget.")
 
+    def train_all_persons_action(self):
+        """Processes and trains all valid person entries."""
+        print("Starting training for all added persons...")
+        if self.training_model is None or self.training_device is None:
+             QMessageBox.critical(self, "Error", "Training model not loaded. Cannot train.")
+             # Optionally set status on all widgets?
+             return
 
-    def add_person_action(self):
-        """Handles adding a new person, processing video or images, and triggering embedding generation."""
-        person_name = self.person_name_input.text().strip()
-        use_video = self.selected_video_path is not None
-        use_images = bool(self.selected_image_paths)
+        processed_count = 0
+        error_count = 0
+        widgets_to_clear = []
+
+        for entry_widget in self.person_entry_widgets:
+            person_name = entry_widget.person_name_input.text().strip()
+            use_video = entry_widget.selected_video_path is not None
+            use_images = bool(entry_widget.selected_image_paths)
+
+            # Skip if no name or no files/video selected for this entry
+            if not person_name or (not use_video and not use_images):
+                # Optionally clear status or set a "Skipped" status
+                # entry_widget.train_status_label.setText("Skipped (Missing info)")
+                # entry_widget.train_status_label.setStyleSheet("color: #aaa;")
+                continue # Move to the next widget
+
+            # Process this single person entry
+            npz_path = self._process_single_person(entry_widget)
+
+            if npz_path:
+                processed_count += 1
+                widgets_to_clear.append(entry_widget) # Mark for clearing after loop
+            else:
+                error_count += 1
+                # Status label is already set within _process_single_person on error/warning
+
+        # --- Summary Message ---
+        summary_message = f"Training finished. Processed: {processed_count}, Errors/Warnings: {error_count}."
+        QMessageBox.information(self, "Training Complete", summary_message)
+        print(summary_message)
+
+        # --- Clear successful entries AFTER the loop ---
+        # It's generally safer to modify UI elements (like clearing inputs)
+        # after iterating and processing is fully done.
+        # for widget in widgets_to_clear:
+        #     widget.person_name_input.clear()
+        #     widget.selected_image_paths = []
+        #     widget.selected_video_path = None
+        #     widget.selected_files_label.setText("No files selected.")
+            # Keep the success status label visible
+
+    def _process_single_person(self, target_widget: PersonEntryWidget):
+        """Handles processing (validation, file handling, embedding) for one PersonEntryWidget. Returns npz_path on success, None on failure."""
+        person_name = target_widget.person_name_input.text().strip()
+        use_video = target_widget.selected_video_path is not None
+        use_images = bool(target_widget.selected_image_paths)
 
         # --- Input Validation ---
-        if not person_name:
-            QMessageBox.warning(self, "Input Error", "Please enter the person's name.")
-            self.train_status_label.setText("Error: Person's name is required.")
-            self.train_status_label.setStyleSheet("color: #f28b82;") # Error color
-            return
-        if not use_video and not use_images:
-            QMessageBox.warning(self, "Input Error", "Please select images or a video.")
-            self.train_status_label.setText("Error: No images or video selected.")
-            self.train_status_label.setStyleSheet("color: #f28b82;") # Error color
-            return
-        # Cannot select both video and images for one person addition
-        if use_video and use_images:
-             QMessageBox.warning(self, "Input Error", "Please select either images OR a video, not both.")
-             self.train_status_label.setText("Error: Select images OR video.")
-             self.train_status_label.setStyleSheet("color: #f28b82;")
-             # Clear selections to force user re-selection
-             self.selected_image_paths = []
-             self.selected_video_path = None
-             self.selected_files_label.setText("No files selected.")
-             return
-        if self.training_model is None or self.training_device is None:
-             QMessageBox.critical(self, "Error", "Training model not loaded. Cannot add person.")
-             self.train_status_label.setText("Error: Training model failed to load.")
-             self.train_status_label.setStyleSheet("color: #f28b82;")
-             return
+        # Basic checks are done in train_all_persons_action before calling this
+        # Add any more specific validation here if needed
 
         # --- Directory and File Handling ---
         person_folder = os.path.join(self.face_database_dir, person_name)
         extracted_frames_count = 0
         try:
-            os.makedirs(person_folder, exist_ok=True) # Create directory if it doesn't exist
-            print(f"Ensured directory exists: {person_folder}")
+            os.makedirs(person_folder, exist_ok=True)
+            print(f"Processing entry for: {person_name}") # Log start
 
             if use_video:
                 # --- Video Frame Extraction ---
-                self.train_status_label.setText("Extracting frames from video...")
-                self.train_status_label.setStyleSheet("color: #8ab4f8;")
-                QApplication.processEvents() # Update UI
+                target_widget.train_status_label.setText("Extracting frames...")
+                target_widget.train_status_label.setStyleSheet("color: #8ab4f8;")
+                QApplication.processEvents()
 
-                cap = cv2.VideoCapture(self.selected_video_path)
+                cap = cv2.VideoCapture(target_widget.selected_video_path)
                 if not cap.isOpened():
-                    raise IOError(f"Cannot open video file: {self.selected_video_path}")
+                    raise IOError(f"Cannot open video file: {target_widget.selected_video_path}")
 
                 frame_count = 0
                 saved_frame_count = 0
@@ -481,7 +632,7 @@ class AdminWindow(QWidget):
                     frame_count += 1
                     # Optional: Update status label periodically during extraction
                     if frame_count % 100 == 0:
-                         self.train_status_label.setText(f"Extracting... (Frame {frame_count})")
+                         target_widget.train_status_label.setText(f"Extracting... (Frame {frame_count})") # Update correct label
                          QApplication.processEvents()
 
 
@@ -490,22 +641,21 @@ class AdminWindow(QWidget):
                 print(f"Extracted {extracted_frames_count} frames from video.")
 
                 if extracted_frames_count == 0:
-                     QMessageBox.warning(self, "Video Error", "Could not extract any frames from the video.")
-                     self.train_status_label.setText("Error: Failed to extract frames.")
-                     self.train_status_label.setStyleSheet("color: #f28b82;")
-                     # Optional cleanup
-                     # if not os.listdir(person_folder): os.rmdir(person_folder)
-                     return
+                     target_widget.train_status_label.setText("Error: Failed to extract frames.")
+                     target_widget.train_status_label.setStyleSheet("color: #f28b82;")
+                     return None # Indicate failure
 
-                self.train_status_label.setText(f"Extracted {extracted_frames_count} frames. Starting training...")
-                self.train_status_label.setStyleSheet("color: #8ab4f8;")
+                target_widget.train_status_label.setText(f"Extracted {extracted_frames_count} frames. Training...") # Update correct label
+                target_widget.train_status_label.setStyleSheet("color: #8ab4f8;")
                 QApplication.processEvents() # Update UI
 
             elif use_images:
                 # --- Copy Image Files ---
-                # Copy selected images to the person's folder
+                target_widget.train_status_label.setText("Copying images...") # Update status
+                target_widget.train_status_label.setStyleSheet("color: #8ab4f8;")
+                QApplication.processEvents()
                 copied_count = 0
-                for img_path in self.selected_image_paths:
+                for img_path in target_widget.selected_image_paths: # Use target_widget's paths
                     try:
                         # Generate a safe filename (e.g., using basename)
                         dest_filename = os.path.basename(img_path)
@@ -520,27 +670,22 @@ class AdminWindow(QWidget):
                         # Decide whether to continue or stop on copy error
 
                 if copied_count == 0:
-                     QMessageBox.warning(self, "File Error", "Could not copy any of the selected images.")
-                     self.train_status_label.setText("Error: Failed to copy images.")
-                     self.train_status_label.setStyleSheet("color: #f28b82;")
-                     # Clean up potentially empty folder?
-                     # if not os.listdir(person_folder): os.rmdir(person_folder) # Optional cleanup
-                     return
+                     target_widget.train_status_label.setText("Error: Failed to copy images.")
+                     target_widget.train_status_label.setStyleSheet("color: #f28b82;")
+                     return None # Indicate failure
 
-                self.train_status_label.setText(f"Copied {copied_count} images. Starting training...")
-                self.train_status_label.setStyleSheet("color: #8ab4f8;") # Processing color
+                target_widget.train_status_label.setText(f"Copied {copied_count} images. Training...") # Update correct label
+                target_widget.train_status_label.setStyleSheet("color: #8ab4f8;") # Processing color
                 QApplication.processEvents() # Update UI
 
         except IOError as vid_err: # Specific error for video opening
-             QMessageBox.critical(self, "Video Error", f"Error opening video file: {vid_err}")
-             self.train_status_label.setText(f"Error: {vid_err}")
-             self.train_status_label.setStyleSheet("color: #f28b82;")
-             return
+             target_widget.train_status_label.setText(f"Error opening video: {vid_err}")
+             target_widget.train_status_label.setStyleSheet("color: #f28b82;")
+             return None
         except Exception as dir_err:
-            QMessageBox.critical(self, "Directory Error", f"Could not create directory for {person_name}: {dir_err}")
-            self.train_status_label.setText(f"Error creating directory: {dir_err}")
-            self.train_status_label.setStyleSheet("color: #f28b82;")
-            return
+            target_widget.train_status_label.setText(f"Error creating directory: {dir_err}")
+            target_widget.train_status_label.setStyleSheet("color: #f28b82;")
+            return None
 
         # --- Embedding Generation (uses images in person_folder) ---
         try:
@@ -554,37 +699,31 @@ class AdminWindow(QWidget):
             )
 
             if npz_path:
-                self.train_status_label.setText(f"Training complete for {person_name}. Embeddings saved.")
-                self.train_status_label.setStyleSheet("color: #4CAF50;") # Success color
+                target_widget.train_status_label.setText(f"Success: Embeddings saved.")
+                target_widget.train_status_label.setStyleSheet("color: #4CAF50;") # Success color
 
                 # --- Update Live Recognition Pipeline ---
                 if hasattr(self.camera_widget, 'pipeline') and self.camera_widget.pipeline:
                     self.camera_widget.pipeline.load_new_person(person_name, npz_path)
                     print(f"Requested pipeline to load new embeddings for {person_name}")
                 else:
-                     print("Warning: CameraWidget pipeline not available to load new embeddings.")
-                     QMessageBox.information(self, "Info", f"Embeddings for {person_name} saved. Restart the application or feed to activate recognition for the new person if the feed wasn't running.")
+                     print(f"Warning: CameraWidget pipeline not available for {person_name}.")
 
-
-                # --- Clear Inputs ---
-                self.person_name_input.clear()
-                self.selected_image_paths = []
-                self.selected_video_path = None # Clear video path
-                self.selected_files_label.setText("No files selected.")
+                # --- Don't clear inputs here, handled after loop in train_all_persons_action ---
+                return npz_path # Indicate success
 
             else:
                 # Handle case where embedding generation failed (e.g., no faces found)
-                QMessageBox.warning(self, "Training Warning", f"Could not generate embeddings for {person_name}. Check images/frames and logs.")
-                self.train_status_label.setText(f"Warning: No embeddings generated for {person_name}.")
-                self.train_status_label.setStyleSheet("color: #fbbc04;") # Warning color
+                target_widget.train_status_label.setText(f"Warning: No embeddings generated.")
+                target_widget.train_status_label.setStyleSheet("color: #fbbc04;") # Warning color
+                return None # Indicate failure/warning
 
 
         except Exception as train_err:
-            QMessageBox.critical(self, "Training Error", f"An error occurred during embedding generation: {train_err}")
-            self.train_status_label.setText(f"Error during training: {train_err}")
-            self.train_status_label.setStyleSheet("color: #f28b82;")
+            target_widget.train_status_label.setText(f"Error during training: {train_err}")
+            target_widget.train_status_label.setStyleSheet("color: #f28b82;")
             print(f"Training error for {person_name}: {train_err}")
-
+            return None # Indicate failure
 
     def toggle_camera_feed(self):
         if self.is_feed_running:
