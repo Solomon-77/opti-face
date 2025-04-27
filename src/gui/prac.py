@@ -1,4 +1,9 @@
 import sys
+import os
+import shutil
+import numpy as np
+import torch
+import cv2 # Added for video processing
 from PyQt6.QtWidgets import (
     QApplication,
     QWidget,
@@ -8,11 +13,16 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QStackedWidget,
-    QSizePolicy, # Added
+    QSizePolicy,
+    QFileDialog,
+    QMessageBox,
 )
 from PyQt6.QtCore import Qt, QTimer, QSize
 from PyQt6.QtGui import QCursor, QIcon, QPixmap
 from src.backend.inference import CameraWidget
+# Import the necessary function and utility from backend
+from src.backend.prepare_embeddings import generate_and_save_embeddings
+from src.backend.utils.face_utils import load_face_recognition_model
 
 # --- Application Setup ---
 app = QApplication(sys.argv)
@@ -31,6 +41,23 @@ class AdminWindow(QWidget):
         self.setWindowTitle("Admin Screen")
         self.resize(900, 600)
         self.is_feed_running = False # Track feed state
+        self.selected_image_paths = [] # To store paths of images selected for upload
+        self.selected_video_path = None # To store path of selected video
+        self.face_database_dir = './src/backend/face_database/' # Define database path
+
+        # Load the face recognition model once for training tasks
+        # Handle potential errors during model loading
+        try:
+            # Use the same model path as inference for consistency
+            model_path = "src/backend/checkpoints/edgeface_s_gamma_05.pt"
+            self.training_model, self.training_device = load_face_recognition_model(model_path=model_path)
+            print("Training model loaded successfully.")
+        except Exception as e:
+            print(f"Error loading training model: {e}")
+            QMessageBox.critical(self, "Model Load Error", f"Failed to load the face recognition model for training: {e}")
+            # Optionally disable training features if model fails to load
+            self.training_model, self.training_device = None, None
+
 
         # Admin window layout
         admin_layout = QHBoxLayout(self)
@@ -96,7 +123,7 @@ class AdminWindow(QWidget):
         self.toggle_feed_button.setCursor(cursor_pointer)
         self.toggle_feed_button.setFixedWidth(100)
         self.toggle_feed_button.clicked.connect(self.toggle_camera_feed)
-        self.toggle_feed_button.setStyleSheet("""
+        self.toggle_feed_button.setStyleSheet("""        
             QPushButton {
                 background-color: #4CAF50;
                 color: white;
@@ -141,7 +168,7 @@ class AdminWindow(QWidget):
         self.apply_threshold.setFixedWidth(80) # Adjust width as needed
         self.apply_threshold.clicked.connect(self.update_threshold)
         # Add specific styling for the apply button
-        self.apply_threshold.setStyleSheet("""
+        self.apply_threshold.setStyleSheet("""        
             QPushButton {
                 padding: 5px;
                 background-color: #4CAF50; /* Green background */
@@ -207,14 +234,23 @@ class AdminWindow(QWidget):
 
         # File selection row
         file_selection_layout = QHBoxLayout()
-        self.upload_image_button = QPushButton("Upload Image")
+        self.upload_image_button = QPushButton("Select Images")
         self.upload_image_button.setCursor(cursor_pointer)
-        # Add styling as needed
-        self.upload_video_button = QPushButton("Upload Video")
+        self.upload_image_button.clicked.connect(self.select_images)
+
+        self.upload_video_button = QPushButton("Select Video") # Added video button
         self.upload_video_button.setCursor(cursor_pointer)
-        # Add styling as needed
+        self.upload_video_button.clicked.connect(self.select_video) # Connect signal
+
         file_selection_layout.addWidget(self.upload_image_button)
-        file_selection_layout.addWidget(self.upload_video_button)
+        file_selection_layout.addWidget(self.upload_video_button) # Add video button to layout
+
+        # Label to show selected file count or video name
+        self.selected_files_label = QLabel("No files selected.")
+        self.selected_files_label.setStyleSheet("font-size: 11px; color: #aaa;") # Basic styling
+        file_selection_layout.addWidget(self.selected_files_label)
+        file_selection_layout.addStretch() # Push label and button
+
         upload_card_layout.addLayout(file_selection_layout)
 
         # Name input row
@@ -228,7 +264,7 @@ class AdminWindow(QWidget):
         upload_card_layout.addLayout(name_input_layout)
 
         # Add Person button
-        self.add_person_button = QPushButton("Add Person")
+        self.add_person_button = QPushButton("Add Person and Train") # Changed text
         self.add_person_button.setCursor(cursor_pointer)
         self.add_person_button.setStyleSheet("""
             QPushButton {
@@ -237,13 +273,20 @@ class AdminWindow(QWidget):
             }
             QPushButton:hover { background-color: #45a049; }
         """)
-        # self.add_person_button.clicked.connect(self.add_person_action) # Connect to actual function later
+        self.add_person_button.clicked.connect(self.add_person_action) # Connect signal
         upload_card_layout.addWidget(self.add_person_button)
+
+        # Status label for training feedback
+        self.train_status_label = QLabel("")
+        self.train_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.train_status_label.setStyleSheet("font-size: 12px; font-weight: bold;")
+        upload_card_layout.addWidget(self.train_status_label)
+
 
         upload_card_layout.addStretch() # Push content upwards
         upload_card.setMinimumHeight(250) # Adjust height as needed
 
-        # --- Training Status Card ---
+        # --- Training Status Card (Optional - can be merged or removed) ---
         train_info_card = QWidget()
         train_info_card_layout = QVBoxLayout(train_info_card)
         train_info_label = QLabel("Training Status") # Changed label
@@ -253,8 +296,8 @@ class AdminWindow(QWidget):
         train_info_card.setStyleSheet("background-color: #2a2b2e; border-radius: 6px;")
         train_info_card.setMaximumHeight(150) # Adjust height
 
-        train_layout.addWidget(upload_card) # Add the new upload card
-        train_layout.addWidget(train_info_card)
+        train_layout.addWidget(upload_card) # Add the upload card
+        # train_layout.addWidget(train_info_card) # Keep or remove
         train_layout.addStretch()
 
         # Settings page
@@ -329,11 +372,225 @@ class AdminWindow(QWidget):
         self._update_icon_color(self.train_button)
         self._update_icon_color(self.settings_button)
 
+    def select_images(self):
+        """Opens a file dialog to select multiple image files."""
+        # Define supported image file extensions
+        image_extensions = "*.png *.jpg *.jpeg *.bmp *.tiff"
+        files, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Select Images for Training",
+            "", # Start directory (optional)
+            f"Image Files ({image_extensions});;All Files (*)"
+        )
+        if files:
+            self.selected_image_paths = files
+            self.selected_video_path = None # Clear video selection if images are selected
+            self.selected_files_label.setText(f"{len(files)} image(s) selected.")
+            print(f"Selected images: {files}")
+        else:
+            # If selection is cancelled or empty, reset
+            # self.selected_image_paths = [] # Keep previous selection? Or clear? Let's clear.
+            # self.selected_files_label.setText("No files selected.")
+            print("No images selected.")
+
+    def select_video(self):
+        """Opens a file dialog to select a single video file."""
+        # Define supported video file extensions
+        video_extensions = "*.mp4 *.avi *.mov *.mkv"
+        file, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Video for Training",
+            "", # Start directory (optional)
+            f"Video Files ({video_extensions});;All Files (*)"
+        )
+        if file:
+            self.selected_video_path = file
+            self.selected_image_paths = [] # Clear image selection if video is selected
+            self.selected_files_label.setText(f"Video: {os.path.basename(file)}")
+            print(f"Selected video: {file}")
+        else:
+            print("No video selected.")
+
+
+    def add_person_action(self):
+        """Handles adding a new person, processing video or images, and triggering embedding generation."""
+        person_name = self.person_name_input.text().strip()
+        use_video = self.selected_video_path is not None
+        use_images = bool(self.selected_image_paths)
+
+        # --- Input Validation ---
+        if not person_name:
+            QMessageBox.warning(self, "Input Error", "Please enter the person's name.")
+            self.train_status_label.setText("Error: Person's name is required.")
+            self.train_status_label.setStyleSheet("color: #f28b82;") # Error color
+            return
+        if not use_video and not use_images:
+            QMessageBox.warning(self, "Input Error", "Please select images or a video.")
+            self.train_status_label.setText("Error: No images or video selected.")
+            self.train_status_label.setStyleSheet("color: #f28b82;") # Error color
+            return
+        # Cannot select both video and images for one person addition
+        if use_video and use_images:
+             QMessageBox.warning(self, "Input Error", "Please select either images OR a video, not both.")
+             self.train_status_label.setText("Error: Select images OR video.")
+             self.train_status_label.setStyleSheet("color: #f28b82;")
+             # Clear selections to force user re-selection
+             self.selected_image_paths = []
+             self.selected_video_path = None
+             self.selected_files_label.setText("No files selected.")
+             return
+        if self.training_model is None or self.training_device is None:
+             QMessageBox.critical(self, "Error", "Training model not loaded. Cannot add person.")
+             self.train_status_label.setText("Error: Training model failed to load.")
+             self.train_status_label.setStyleSheet("color: #f28b82;")
+             return
+
+        # --- Directory and File Handling ---
+        person_folder = os.path.join(self.face_database_dir, person_name)
+        extracted_frames_count = 0
+        try:
+            os.makedirs(person_folder, exist_ok=True) # Create directory if it doesn't exist
+            print(f"Ensured directory exists: {person_folder}")
+
+            if use_video:
+                # --- Video Frame Extraction ---
+                self.train_status_label.setText("Extracting frames from video...")
+                self.train_status_label.setStyleSheet("color: #8ab4f8;")
+                QApplication.processEvents() # Update UI
+
+                cap = cv2.VideoCapture(self.selected_video_path)
+                if not cap.isOpened():
+                    raise IOError(f"Cannot open video file: {self.selected_video_path}")
+
+                frame_count = 0
+                saved_frame_count = 0
+                frame_interval = 5
+
+                while True:
+                    ret, frame = cap.read()
+                    if not ret:
+                        break # End of video
+
+                    if frame_count % frame_interval == 0:
+                        # Save frame as JPEG
+                        frame_filename = f"{person_name}_frame_{saved_frame_count:04d}.jpg"
+                        frame_path = os.path.join(person_folder, frame_filename)
+                        cv2.imwrite(frame_path, frame)
+                        saved_frame_count += 1
+
+                    frame_count += 1
+                    # Optional: Update status label periodically during extraction
+                    if frame_count % 100 == 0:
+                         self.train_status_label.setText(f"Extracting... (Frame {frame_count})")
+                         QApplication.processEvents()
+
+
+                cap.release()
+                extracted_frames_count = saved_frame_count
+                print(f"Extracted {extracted_frames_count} frames from video.")
+
+                if extracted_frames_count == 0:
+                     QMessageBox.warning(self, "Video Error", "Could not extract any frames from the video.")
+                     self.train_status_label.setText("Error: Failed to extract frames.")
+                     self.train_status_label.setStyleSheet("color: #f28b82;")
+                     # Optional cleanup
+                     # if not os.listdir(person_folder): os.rmdir(person_folder)
+                     return
+
+                self.train_status_label.setText(f"Extracted {extracted_frames_count} frames. Starting training...")
+                self.train_status_label.setStyleSheet("color: #8ab4f8;")
+                QApplication.processEvents() # Update UI
+
+            elif use_images:
+                # --- Copy Image Files ---
+                # Copy selected images to the person's folder
+                copied_count = 0
+                for img_path in self.selected_image_paths:
+                    try:
+                        # Generate a safe filename (e.g., using basename)
+                        dest_filename = os.path.basename(img_path)
+                        dest_path = os.path.join(person_folder, dest_filename)
+                        # Avoid overwriting existing files with the same name in the folder?
+                        # For simplicity, we'll overwrite now. Add checks if needed.
+                        shutil.copy(img_path, dest_path)
+                        print(f"Copied {img_path} to {dest_path}")
+                        copied_count += 1
+                    except Exception as copy_err:
+                        print(f"Error copying file {img_path}: {copy_err}")
+                        # Decide whether to continue or stop on copy error
+
+                if copied_count == 0:
+                     QMessageBox.warning(self, "File Error", "Could not copy any of the selected images.")
+                     self.train_status_label.setText("Error: Failed to copy images.")
+                     self.train_status_label.setStyleSheet("color: #f28b82;")
+                     # Clean up potentially empty folder?
+                     # if not os.listdir(person_folder): os.rmdir(person_folder) # Optional cleanup
+                     return
+
+                self.train_status_label.setText(f"Copied {copied_count} images. Starting training...")
+                self.train_status_label.setStyleSheet("color: #8ab4f8;") # Processing color
+                QApplication.processEvents() # Update UI
+
+        except IOError as vid_err: # Specific error for video opening
+             QMessageBox.critical(self, "Video Error", f"Error opening video file: {vid_err}")
+             self.train_status_label.setText(f"Error: {vid_err}")
+             self.train_status_label.setStyleSheet("color: #f28b82;")
+             return
+        except Exception as dir_err:
+            QMessageBox.critical(self, "Directory Error", f"Could not create directory for {person_name}: {dir_err}")
+            self.train_status_label.setText(f"Error creating directory: {dir_err}")
+            self.train_status_label.setStyleSheet("color: #f28b82;")
+            return
+
+        # --- Embedding Generation (uses images in person_folder) ---
+        try:
+            # Call the function from prepare_embeddings
+            npz_path = generate_and_save_embeddings(
+                person_name=person_name,
+                person_folder=person_folder,
+                output_dir=self.face_database_dir, # Save .npz in the main db dir
+                model=self.training_model,
+                device=self.training_device
+            )
+
+            if npz_path:
+                self.train_status_label.setText(f"Training complete for {person_name}. Embeddings saved.")
+                self.train_status_label.setStyleSheet("color: #4CAF50;") # Success color
+
+                # --- Update Live Recognition Pipeline ---
+                if hasattr(self.camera_widget, 'pipeline') and self.camera_widget.pipeline:
+                    self.camera_widget.pipeline.load_new_person(person_name, npz_path)
+                    print(f"Requested pipeline to load new embeddings for {person_name}")
+                else:
+                     print("Warning: CameraWidget pipeline not available to load new embeddings.")
+                     QMessageBox.information(self, "Info", f"Embeddings for {person_name} saved. Restart the application or feed to activate recognition for the new person if the feed wasn't running.")
+
+
+                # --- Clear Inputs ---
+                self.person_name_input.clear()
+                self.selected_image_paths = []
+                self.selected_video_path = None # Clear video path
+                self.selected_files_label.setText("No files selected.")
+
+            else:
+                # Handle case where embedding generation failed (e.g., no faces found)
+                QMessageBox.warning(self, "Training Warning", f"Could not generate embeddings for {person_name}. Check images/frames and logs.")
+                self.train_status_label.setText(f"Warning: No embeddings generated for {person_name}.")
+                self.train_status_label.setStyleSheet("color: #fbbc04;") # Warning color
+
+
+        except Exception as train_err:
+            QMessageBox.critical(self, "Training Error", f"An error occurred during embedding generation: {train_err}")
+            self.train_status_label.setText(f"Error during training: {train_err}")
+            self.train_status_label.setStyleSheet("color: #f28b82;")
+            print(f"Training error for {person_name}: {train_err}")
+
+
     def toggle_camera_feed(self):
         if self.is_feed_running:
             self.camera_widget.stop_feed()
             self.toggle_feed_button.setText("Start Feed")
-            self.toggle_feed_button.setStyleSheet("""
+            self.toggle_feed_button.setStyleSheet("""        
                 QPushButton {
                     background-color: #4CAF50;
                     color: white;
@@ -350,7 +607,7 @@ class AdminWindow(QWidget):
         else:
             self.camera_widget.start_feed()
             self.toggle_feed_button.setText("Stop Feed")
-            self.toggle_feed_button.setStyleSheet("""
+            self.toggle_feed_button.setStyleSheet("""        
                 QPushButton {
                     background-color: #f44336;
                     color: white;
@@ -413,11 +670,22 @@ class AdminWindow(QWidget):
         try:
             threshold = float(self.threshold_input.text())
             if 0 <= threshold <= 1:
-                self.camera_widget.set_recognition_threshold(threshold)
+                # Ensure camera_widget and pipeline exist before setting threshold
+                if hasattr(self.camera_widget, 'pipeline') and self.camera_widget.pipeline:
+                    self.camera_widget.set_recognition_threshold(threshold)
+                    print(f"Recognition threshold set to: {threshold}")
+                else:
+                    print("Warning: CameraWidget or pipeline not initialized. Cannot set threshold.")
+                    # Optionally store the value and apply it when the pipeline starts
             else:
+                QMessageBox.warning(self, "Invalid Input", "Threshold must be between 0.0 and 1.0.")
                 print("Threshold must be between 0 and 1")
         except ValueError:
+            QMessageBox.warning(self, "Invalid Input", "Please enter a valid number for the threshold.")
             print("Invalid threshold value")
+        except Exception as e:
+             print(f"Error setting threshold: {e}")
+
 
 def login():
     if username.text() == ADMIN_USERNAME and password.text() == ADMIN_PASSWORD:

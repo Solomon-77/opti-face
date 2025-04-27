@@ -14,37 +14,83 @@ from PyQt6.QtGui import QImage, QPixmap, QColor
 class FaceRecognitionPipeline:
     def __init__(self):
         self.model, self.device = load_face_recognition_model()
-        face_database_dir = './src/backend/face_database/'
+        self.face_database_dir = './src/backend/face_database/' # Store path
         self.saved_embeddings = []
         self.saved_labels = []
-        
+        self.lock = threading.Lock() # Ensure lock is initialized before loading
+
+        # Initial loading of embeddings
+        self._load_all_embeddings()
+
         # FPS calculation variables
         self.prev_frame_time = 0
         self.curr_frame_time = 0
         self.fps = 0
         
-        for filename in os.listdir(face_database_dir):
-            if filename.endswith('.npz'):
-                person_name = os.path.splitext(filename)[0]
-                npz_path = os.path.join(face_database_dir, filename)
-                data = np.load(npz_path)
-                embeddings = data['embeddings']
-                
-                for embedding in embeddings:
-                    self.saved_embeddings.append(torch.tensor(embedding).to(self.device))
-                    self.saved_labels.append(person_name)
-                    
         self.align_queue = queue.Queue(maxsize=5)
         self.recog_queue = queue.Queue(maxsize=5)
         self.results = {}
         self.next_id = 0
         self.frame_count = 0
         self.running = True
-        self.lock = threading.Lock()
-        
+        # self.lock = threading.Lock() # Moved up
+
         # Start alignment and recognition worker threads
         threading.Thread(target=self._alignment_worker, daemon=True).start()
         threading.Thread(target=self._recognition_worker, daemon=True).start()
+
+    def _load_all_embeddings(self):
+        """Loads all embeddings from the database directory."""
+        print("Loading all known face embeddings...")
+        loaded_embeddings = []
+        loaded_labels = []
+        try:
+            for filename in os.listdir(self.face_database_dir):
+                if filename.endswith('.npz'):
+                    person_name = os.path.splitext(filename)[0]
+                    npz_path = os.path.join(self.face_database_dir, filename)
+                    try:
+                        data = np.load(npz_path)
+                        embeddings = data['embeddings']
+                        for embedding in embeddings:
+                            # Ensure embedding is correctly shaped (e.g., 1D array)
+                            embedding_tensor = torch.tensor(embedding.squeeze()).to(self.device)
+                            loaded_embeddings.append(embedding_tensor)
+                            loaded_labels.append(person_name)
+                        print(f"Loaded {len(embeddings)} embeddings for {person_name}")
+                    except Exception as e:
+                        print(f"Error loading embeddings from {filename}: {e}")
+        except FileNotFoundError:
+            print(f"Warning: Face database directory not found at {self.face_database_dir}")
+        except Exception as e:
+            print(f"An error occurred while listing database directory: {e}")
+
+        with self.lock:
+            self.saved_embeddings = loaded_embeddings
+            self.saved_labels = loaded_labels
+        print(f"Total loaded embeddings: {len(self.saved_embeddings)}")
+
+
+    def load_new_person(self, person_name, npz_path):
+        """Loads embeddings for a newly added person and appends them."""
+        print(f"Dynamically loading embeddings for new person: {person_name}")
+        try:
+            data = np.load(npz_path)
+            embeddings = data['embeddings']
+            new_embeddings_count = 0
+            with self.lock: # Ensure thread-safe update
+                for embedding in embeddings:
+                     # Ensure embedding is correctly shaped (e.g., 1D array)
+                    embedding_tensor = torch.tensor(embedding.squeeze()).to(self.device)
+                    self.saved_embeddings.append(embedding_tensor)
+                    self.saved_labels.append(person_name)
+                    new_embeddings_count += 1
+            print(f"Successfully loaded {new_embeddings_count} new embeddings for {person_name}.")
+            print(f"Total embeddings now: {len(self.saved_embeddings)}")
+        except FileNotFoundError:
+            print(f"Error: .npz file not found at {npz_path}")
+        except Exception as e:
+            print(f"Error loading new person embeddings from {npz_path}: {e}")
 
     def _alignment_worker(self):
         """Thread worker for aligning faces before recognition."""
@@ -76,25 +122,52 @@ class FaceRecognitionPipeline:
                 aligned_face, face_id = self.recog_queue.get()
                 if aligned_face is None:
                     continue
-                
+
                 face_tensor = transform(aligned_face).unsqueeze(0).to(self.device)
-                embedding = self.model(face_tensor).detach()
-                
-                similarities = [cosine_similarity(saved_emb, embedding).item() for saved_emb in self.saved_embeddings]
-                best_idx = np.argmax(similarities)
-                best_score = similarities[best_idx]
-                
-                with self.lock:
+                with torch.no_grad(): # Ensure no gradients are calculated during inference
+                    embedding = self.model(face_tensor).detach()
+
+                with self.lock: # Acquire lock before accessing shared lists
+                    if not self.saved_embeddings: # Check if embeddings list is empty
+                         # Handle case with no known faces gracefully
+                         best_score = -1.0
+                         best_idx = -1
+                    else:
+                        # Calculate similarities only if there are saved embeddings
+                        similarities = [cosine_similarity(saved_emb.unsqueeze(0), embedding).item() for saved_emb in self.saved_embeddings]
+                        if similarities: # Ensure similarities list is not empty
+                            best_idx = np.argmax(similarities)
+                            best_score = similarities[best_idx]
+                        else:
+                            best_score = -1.0
+                            best_idx = -1
+
+                    # Update results (still under lock)
                     if face_id in self.results:
+                        person_label = "Unknown"
+                        if best_idx != -1 and best_score > self.recognition_threshold:
+                             # Check index bounds just in case
+                             if best_idx < len(self.saved_labels):
+                                 person_label = self.saved_labels[best_idx]
+                             else:
+                                 print(f"Warning: best_idx {best_idx} out of bounds for saved_labels (len {len(self.saved_labels)})")
+
+
                         self.results[face_id].update({
-                            'name': self.saved_labels[best_idx] if best_score > self.recognition_threshold else "Unknown",
-                            'similarity': best_score,
+                            'name': person_label,
+                            'similarity': best_score if best_idx != -1 else 0.0,
                             'last_seen': self.frame_count
                         })
-                
+                    # Lock is released automatically when 'with' block exits
+
                 self.recog_queue.task_done()
+            except queue.Empty:
+                 continue # Handle empty queue if timeout is used in get()
             except Exception as e:
                 print(f"Recognition error: {e}")
+                # Optionally put task_done even on error if appropriate
+                # self.recog_queue.task_done()
+
 
     def process_frame(self, frame, recognition_threshold=0.6):
         """Detect, align, and recognize faces in a video frame."""
@@ -164,8 +237,21 @@ class FaceRecognitionPipeline:
 
     def cleanup(self):
         """Stop the pipeline and release resources."""
+        print("Cleaning up FaceRecognitionPipeline...")
         self.running = False
+        # Add sentinel values to unblock worker threads waiting on queues
+        try:
+            self.align_queue.put_nowait((None, None, None))
+        except queue.Full:
+            pass
+        try:
+            self.recog_queue.put_nowait((None, None))
+        except queue.Full:
+            pass
+        # Optionally join threads here if needed, though daemon=True helps
         cv2.destroyAllWindows()
+        print("Cleanup complete.")
+
 
 class CameraWidget(QWidget):
     def __init__(self, parent=None):
@@ -244,9 +330,13 @@ class CameraWidget(QWidget):
                 self.camera_label.setPixmap(scaled_pixmap)
 
     def closeEvent(self, event):
+        print("Closing CameraWidget...")
         self.stop_feed() # Ensure feed is stopped
-        self.pipeline.cleanup()
-        self.cap.release()
+        if hasattr(self, 'pipeline') and self.pipeline:
+             self.pipeline.cleanup()
+        if hasattr(self, 'cap') and self.cap:
+             self.cap.release()
+        print("CameraWidget resources released.")
         super().closeEvent(event)
 
 def main():
