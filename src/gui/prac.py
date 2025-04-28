@@ -57,7 +57,7 @@ class PersonEntryWidget(QWidget):
         self.upload_image_button.setCursor(cursor_pointer)
         self.upload_image_button.clicked.connect(lambda: self.parent_admin_window.select_images(self))
         # Add styling for the image button
-        self.upload_image_button.setStyleSheet("""
+        self.upload_image_button.setStyleSheet("""        
             QPushButton {
                 background-color: #5f6368; color: white;
                 border: none; border-radius: 4px; padding: 6px 10px;
@@ -69,7 +69,7 @@ class PersonEntryWidget(QWidget):
         self.upload_video_button.setCursor(cursor_pointer)
         self.upload_video_button.clicked.connect(lambda: self.parent_admin_window.select_video(self))
         # Add styling for the video button
-        self.upload_video_button.setStyleSheet("""
+        self.upload_video_button.setStyleSheet("""        
             QPushButton {
                 background-color: #5f6368; color: white;
                 border: none; border-radius: 4px; padding: 6px 10px;
@@ -84,7 +84,7 @@ class PersonEntryWidget(QWidget):
         # Add remove button to file selection row
         self.remove_button = QPushButton("Remove")  # Using × symbol for delete
         self.remove_button.setCursor(cursor_pointer)
-        self.remove_button.setStyleSheet("""
+        self.remove_button.setStyleSheet("""        
             QPushButton {
                 background-color: #f44336; 
                 color: white; 
@@ -115,7 +115,7 @@ class PersonEntryWidget(QWidget):
         self.person_name_input = QLineEdit()
         self.person_name_input.setPlaceholderText("Enter name")
         # Add styling similar to previous input fields if needed
-        self.person_name_input.setStyleSheet("""
+        self.person_name_input.setStyleSheet("""        
             QLineEdit {
                 padding: 5px; border: 1px solid #5f6368; border-radius: 4px;
                 background-color: #3a3b3e; color: white;
@@ -189,6 +189,14 @@ class AdminWindow(QWidget):
         self.train_button.setProperty("class", "sidebar-buttons")
         self.train_button.setCheckable(True)
         sidebar_layout.addWidget(self.train_button)
+
+        # Database button (New)
+        self.database_button = QPushButton("Face DB")
+        self.database_button.setIconSize(QSize(18, 18))
+        self.database_button.setCursor(cursor_pointer)
+        self.database_button.setProperty("class", "sidebar-buttons")
+        self.database_button.setCheckable(True)
+        sidebar_layout.addWidget(self.database_button)
 
         # Settings button
         self.settings_button = QPushButton("Settings")
@@ -323,7 +331,7 @@ class AdminWindow(QWidget):
         # Button to add new person entries
         self.add_person_entry_button = QPushButton("+ Add Person")
         self.add_person_entry_button.setCursor(cursor_pointer)
-        self.add_person_entry_button.setStyleSheet("""
+        self.add_person_entry_button.setStyleSheet("""        
             QPushButton {
                 background-color: #8ab4f8; color: black; font-weight: bold;
                 border: none; border-radius: 4px; padding: 8px; max-width: 150px;
@@ -336,7 +344,7 @@ class AdminWindow(QWidget):
         # Scroll Area for Person Entries
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setStyleSheet("QScrollArea { border: none; background-color: #202124; }") # Style scroll area
+        self.scroll_area.setStyleSheet("QScrollArea { border: none; background-color: #202124; padding: 5px; }") # Style scroll area
 
         # Container widget inside Scroll Area
         self.scroll_content_widget = QWidget()
@@ -353,7 +361,7 @@ class AdminWindow(QWidget):
         # Add the "Train All" button below the scroll area
         self.train_all_button = QPushButton("Train All Added Persons")
         self.train_all_button.setCursor(cursor_pointer)
-        self.train_all_button.setStyleSheet("""
+        self.train_all_button.setStyleSheet("""        
             QPushButton {
                 background-color: #4CAF50; color: white; font-weight: bold;
                 border: none; border-radius: 4px; padding: 10px; margin-top: 10px;
@@ -368,6 +376,45 @@ class AdminWindow(QWidget):
         # Add the first entry widget automatically
         self.add_person_entry_widget()
 
+        # --- Face Database page (New) ---
+        database_page = QWidget()
+        database_layout = QVBoxLayout(database_page)
+        database_layout.setContentsMargins(25, 25, 25, 25)
+        database_layout.setSpacing(15)
+
+        db_top_layout = QHBoxLayout()
+        db_label = QLabel("Registered Faces")
+        db_label.setStyleSheet("font-size: 16px; font-weight: bold;")
+        self.refresh_db_button = QPushButton("Refresh List")
+        self.refresh_db_button.setCursor(cursor_pointer)
+        self.refresh_db_button.clicked.connect(self.populate_database_list)
+        self.refresh_db_button.setStyleSheet("""
+            QPushButton {
+                background-color: #5f6368; color: white;
+                border: none; border-radius: 4px; padding: 6px 10px; max-width: 120px;
+            }
+            QPushButton:hover { background-color: #707478; }
+        """)
+        db_top_layout.addWidget(db_label)
+        db_top_layout.addStretch()
+        db_top_layout.addWidget(self.refresh_db_button)
+        database_layout.addLayout(db_top_layout)
+
+
+        self.db_scroll_area = QScrollArea()
+        self.db_scroll_area.setWidgetResizable(True)
+        self.db_scroll_area.setStyleSheet("QScrollArea { border: 1px solid #3a3b3e; background-color: #2a2b2e; border-radius: 6px; }") # Style scroll area
+
+        self.db_scroll_content_widget = QWidget()
+        self.db_scroll_area.setWidget(self.db_scroll_content_widget)
+
+        self.database_list_layout = QVBoxLayout(self.db_scroll_content_widget)
+        self.database_list_layout.setContentsMargins(10, 10, 10, 10) # Margins inside scroll area
+        self.database_list_layout.setSpacing(8) # Spacing between entries
+        self.database_list_layout.setAlignment(Qt.AlignmentFlag.AlignTop) # Align entries to the top
+
+        database_layout.addWidget(self.db_scroll_area) # Add scroll area to the database page layout
+
         # --- Settings page ---
         settings_page = QWidget()
         settings_layout = QVBoxLayout(settings_page)
@@ -378,6 +425,7 @@ class AdminWindow(QWidget):
         # Add pages to stack
         self.contentStack.addWidget(dashboard_page)
         self.contentStack.addWidget(train_page)
+        self.contentStack.addWidget(database_page) # Add new database page
         self.contentStack.addWidget(settings_page)
 
         admin_layout.addWidget(sidebar)
@@ -385,7 +433,11 @@ class AdminWindow(QWidget):
 
         self.dashboard_button.clicked.connect(lambda: self._update_button_states(0, self.dashboard_button))
         self.train_button.clicked.connect(lambda: self._update_button_states(1, self.train_button))
-        self.settings_button.clicked.connect(lambda: self._update_button_states(2, self.settings_button))
+        self.database_button.clicked.connect(lambda: self._update_button_states(2, self.database_button)) # Connect new button
+        self.settings_button.clicked.connect(lambda: self._update_button_states(3, self.settings_button)) # Adjust index
+
+        # Initial population of database list when window is created
+        self.populate_database_list()
 
         # Styling
         self.setStyleSheet(
@@ -438,6 +490,7 @@ class AdminWindow(QWidget):
 
         self._update_icon_color(self.dashboard_button)
         self._update_icon_color(self.train_button)
+        self._update_icon_color(self.database_button) # Update icon for new button
         self._update_icon_color(self.settings_button)
 
     def add_person_entry_widget(self):
@@ -765,6 +818,7 @@ class AdminWindow(QWidget):
         # Uncheck all buttons first
         self.dashboard_button.setChecked(False)
         self.train_button.setChecked(False)
+        self.database_button.setChecked(False) # Add database button
         self.settings_button.setChecked(False)
 
         # Check the clicked button
@@ -773,8 +827,10 @@ class AdminWindow(QWidget):
         # Switch to the correct page in the stack
         self.contentStack.setCurrentIndex(index)
 
+        # Update icons for all buttons
         self._update_icon_color(self.dashboard_button)
         self._update_icon_color(self.train_button)
+        self._update_icon_color(self.database_button) # Add database button
         self._update_icon_color(self.settings_button)
 
     def _update_icon_color(self, button):
@@ -784,7 +840,9 @@ class AdminWindow(QWidget):
         if button == self.dashboard_button:
             icon_base_name = 'dashboard'
         elif button == self.train_button:
-            icon_base_name = 'camera'
+            icon_base_name = 'camera' # Consider renaming icon file if 'train' is better
+        elif button == self.database_button: # Add database button case
+            icon_base_name = 'database' # This line handles the database icon
         elif button == self.settings_button:
             icon_base_name = 'settings'
 
@@ -795,7 +853,8 @@ class AdminWindow(QWidget):
                 icon_path = f"{icon_folder}/{icon_base_name}_white.svg"
 
             try:
-                icon = QIcon(QPixmap(icon_path))
+                icon = QIcon(QPixmap(icon_path)) # Using QPixmap for SVG might need QtSvg module
+                # Consider using QIcon(icon_path) directly if QtSvg is available and configured
                 if not icon.isNull():
                     button.setIcon(icon)
                 else:
@@ -824,6 +883,144 @@ class AdminWindow(QWidget):
             print("Invalid threshold value")
         except Exception as e:
              print(f"Error setting threshold: {e}")
+
+    def populate_database_list(self):
+        """Clears and repopulates the face database list view."""
+        # Clear existing widgets in the layout
+        while self.database_list_layout.count():
+            item = self.database_list_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+        print("Populating database list...")
+        try:
+            found_files = False
+            for filename in sorted(os.listdir(self.face_database_dir)):
+                if filename.endswith('.npz'):
+                    found_files = True
+                    person_name = os.path.splitext(filename)[0]
+                    npz_path = os.path.join(self.face_database_dir, filename)
+
+                    # Create a widget for each person entry
+                    entry_widget = QWidget()
+                    entry_layout = QHBoxLayout(entry_widget)
+                    entry_layout.setContentsMargins(5, 5, 5, 5)
+                    entry_widget.setStyleSheet("background-color: #3a3b3e; border-radius: 4px;") # Slightly different bg
+
+                    name_label = QLabel(person_name)
+                    name_label.setStyleSheet("font-size: 13px; font-weight: bold; background: none;")
+
+                    delete_button = QPushButton("Delete")
+                    delete_button.setCursor(cursor_pointer)
+                    delete_button.setFixedWidth(80)
+                    delete_button.setStyleSheet("""        
+                        QPushButton {
+                            background-color: #f44336; color: white; font-weight: bold;
+                            border: none; border-radius: 4px; padding: 5px;
+                        }
+                        QPushButton:hover { background-color: #da190b; }
+                    """)
+                    # Use lambda to capture the current person_name for the slot
+                    delete_button.clicked.connect(lambda checked=False, name=person_name: self.delete_person_action(name))
+
+                    entry_layout.addWidget(name_label)
+                    entry_layout.addStretch()
+                    entry_layout.addWidget(delete_button)
+
+                    self.database_list_layout.addWidget(entry_widget)
+
+            if not found_files:
+                 no_faces_label = QLabel("No registered faces found in the database.")
+                 no_faces_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                 no_faces_label.setStyleSheet("color: #aaa; font-style: italic;")
+                 self.database_list_layout.addWidget(no_faces_label)
+
+            # Add a stretch at the end to push items to the top if the list is short
+            self.database_list_layout.addStretch()
+
+        except FileNotFoundError:
+            print(f"Database directory not found: {self.face_database_dir}")
+            error_label = QLabel(f"Error: Database directory not found at\n{self.face_database_dir}")
+            error_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            error_label.setStyleSheet("color: #f28b82;")
+            self.database_list_layout.addWidget(error_label)
+        except Exception as e:
+            print(f"Error populating database list: {e}")
+            error_label = QLabel(f"An error occurred: {e}")
+            error_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            error_label.setStyleSheet("color: #f28b82;")
+            self.database_list_layout.addWidget(error_label)
+
+    def delete_person_action(self, person_name):
+        """Handles the deletion of a person from the database."""
+        print(f"Attempting to delete person: {person_name}")
+
+        reply = QMessageBox.question(self, 'Confirm Deletion',
+                                     f"Are you sure you want to delete '{person_name}'?\n"
+                                     f"This will remove their embeddings (.npz) and their image folder.",
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                     QMessageBox.StandardButton.No)
+
+        if reply == QMessageBox.StandardButton.Yes:
+            npz_path = os.path.join(self.face_database_dir, f"{person_name}.npz")
+            person_image_folder = os.path.join(self.face_database_dir, person_name)
+            deleted_npz = False
+            deleted_folder = False
+            pipeline_updated = False
+
+            # 1. Delete .npz file
+            try:
+                if os.path.exists(npz_path):
+                    os.remove(npz_path)
+                    print(f"Deleted .npz file: {npz_path}")
+                    deleted_npz = True
+                else:
+                    print(f"Warning: .npz file not found, cannot delete: {npz_path}")
+            except Exception as e:
+                print(f"Error deleting .npz file {npz_path}: {e}")
+                QMessageBox.warning(self, "Deletion Error", f"Could not delete the .npz file for {person_name}: {e}")
+
+            # 2. Delete image folder (optional, but recommended)
+            try:
+                if os.path.isdir(person_image_folder):
+                    shutil.rmtree(person_image_folder)
+                    print(f"Deleted image folder: {person_image_folder}")
+                    deleted_folder = True
+                else:
+                    print(f"Info: Image folder not found, skipping deletion: {person_image_folder}")
+                    # If the folder doesn't exist, we can still consider it 'successful' in terms of cleanup
+                    deleted_folder = True # Or set based on whether deletion was *attempted* and failed vs not needed
+            except Exception as e:
+                print(f"Error deleting image folder {person_image_folder}: {e}")
+                QMessageBox.warning(self, "Deletion Error", f"Could not delete the image folder for {person_name}: {e}")
+
+            # 3. Update live recognition pipeline
+            try:
+                if hasattr(self.camera_widget, 'pipeline') and self.camera_widget.pipeline:
+                    self.camera_widget.pipeline.remove_person(person_name)
+                    print(f"Requested pipeline to remove embeddings for {person_name}")
+                    pipeline_updated = True
+                else:
+                    print(f"Warning: CameraWidget pipeline not available to remove {person_name}.")
+                    # Consider if this is an error or just info
+            except Exception as e:
+                 print(f"Error updating pipeline to remove {person_name}: {e}")
+                 QMessageBox.warning(self, "Pipeline Error", f"Could not update the live recognition pipeline: {e}")
+
+
+            # 4. Refresh the UI list
+            self.populate_database_list()
+
+            # Optional: Show success message if key parts succeeded
+            if deleted_npz and deleted_folder and pipeline_updated:
+                 QMessageBox.information(self, "Deletion Successful", f"Successfully removed {person_name} from the database and live recognition.")
+            elif deleted_npz: # At least the core file was deleted
+                 QMessageBox.information(self, "Deletion Partially Successful", f"Removed {person_name}'s .npz file. Check console for details on folder/pipeline updates.")
+
+
+        else:
+            print(f"Deletion cancelled for {person_name}.")
 
 
 def login():

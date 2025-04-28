@@ -92,6 +92,29 @@ class FaceRecognitionPipeline:
         except Exception as e:
             print(f"Error loading new person embeddings from {npz_path}: {e}")
 
+    def remove_person(self, person_name):
+        """Removes embeddings and labels for a specific person."""
+        print(f"Attempting to remove {person_name} from live recognition...")
+        with self.lock: # Ensure thread-safe update
+            initial_count = len(self.saved_embeddings)
+            # Create new lists excluding the person to be removed
+            new_embeddings = []
+            new_labels = []
+            removed_count = 0
+            for i in range(len(self.saved_labels)):
+                if self.saved_labels[i] != person_name:
+                    new_embeddings.append(self.saved_embeddings[i])
+                    new_labels.append(self.saved_labels[i])
+                else:
+                    removed_count += 1
+
+            # Update the shared lists
+            self.saved_embeddings = new_embeddings
+            self.saved_labels = new_labels
+            final_count = len(self.saved_embeddings)
+            print(f"Removed {removed_count} embeddings for {person_name}. "
+                  f"Total embeddings now: {final_count} (was {initial_count}).")
+
     def _alignment_worker(self):
         """Thread worker for aligning faces before recognition."""
         while self.running:
