@@ -62,7 +62,7 @@ class PersonEntryWidget(QWidget):
         self.upload_image_button.setCursor(cursor_pointer)
         self.upload_image_button.clicked.connect(lambda: self.parent_admin_window.select_images(self))
         # Add styling for the image button
-        self.upload_image_button.setStyleSheet("""        
+        self.upload_image_button.setStyleSheet("""
             QPushButton {
                 background-color: #5f6368; color: white;
                 border: none; border-radius: 4px; padding: 6px 10px;
@@ -74,7 +74,7 @@ class PersonEntryWidget(QWidget):
         self.upload_video_button.setCursor(cursor_pointer)
         self.upload_video_button.clicked.connect(lambda: self.parent_admin_window.select_video(self))
         # Add styling for the video button
-        self.upload_video_button.setStyleSheet("""        
+        self.upload_video_button.setStyleSheet("""
             QPushButton {
                 background-color: #5f6368; color: white;
                 border: none; border-radius: 4px; padding: 6px 10px;
@@ -89,13 +89,13 @@ class PersonEntryWidget(QWidget):
         # Add remove button to file selection row
         self.remove_button = QPushButton("Remove")  # Using × symbol for delete
         self.remove_button.setCursor(cursor_pointer)
-        self.remove_button.setStyleSheet("""        
+        self.remove_button.setStyleSheet("""
             QPushButton {
-                background-color: #f44336; 
-                color: white; 
+                background-color: #f44336;
+                color: white;
                 font-weight: bold;
-                border: none; 
-                border-radius: 4px; 
+                border: none;
+                border-radius: 4px;
                 padding: 5px 10px;
             }
             QPushButton:hover { background-color: #da190b; }
@@ -120,7 +120,7 @@ class PersonEntryWidget(QWidget):
         self.person_name_input = QLineEdit()
         self.person_name_input.setPlaceholderText("Enter name")
         # Add styling similar to previous input fields if needed
-        self.person_name_input.setStyleSheet("""        
+        self.person_name_input.setStyleSheet("""
             QLineEdit {
                 padding: 5px; border: 1px solid #5f6368; border-radius: 4px;
                 background-color: #3a3b3e; color: white;
@@ -150,6 +150,7 @@ class AdminWindow(QWidget):
         self.face_database_dir = './src/backend/face_database/' # Define database path
         self.person_entry_widgets = [] # List to hold PersonEntryWidget instances
         self.training_frame_interval = 5 # Default value, will be configurable
+        self.icon_folder = "src/gui/icons" # Define icon folder path
 
         # Load the face recognition model once for training tasks
         # Handle potential errors during model loading
@@ -220,6 +221,29 @@ class AdminWindow(QWidget):
         self.settings_button.setCheckable(True)
         sidebar_layout.addWidget(self.settings_button)
 
+        # --- Add Spacer to push Logout button down ---
+        sidebar_layout.addStretch()
+
+        # --- Logout Button ---
+        self.logout_button = QPushButton("Logout")
+        self.logout_button.setIconSize(QSize(18, 18))
+        self.logout_button.setCursor(cursor_pointer)
+        self.logout_button.setProperty("class", "sidebar-buttons") # Use same class for styling
+        # Set the initial (white) icon directly
+        try:
+            logout_icon_path = f"{self.icon_folder}/logout_white.svg"
+            logout_icon = QIcon(QPixmap(logout_icon_path))
+            if not logout_icon.isNull():
+                self.logout_button.setIcon(logout_icon)
+            else:
+                print(f"Warning: Could not load logout icon from {logout_icon_path}")
+        except Exception as e:
+            print(f"Error loading logout icon {logout_icon_path}: {e}")
+
+        self.logout_button.clicked.connect(self.logout_action) # Connect to logout method
+        sidebar_layout.addWidget(self.logout_button)
+
+
         # Stacked widget
         self.contentStack = QStackedWidget()
 
@@ -245,7 +269,7 @@ class AdminWindow(QWidget):
         self.toggle_feed_button.setCursor(cursor_pointer)
         self.toggle_feed_button.setFixedWidth(100)
         self.toggle_feed_button.clicked.connect(self.toggle_camera_feed)
-        self.toggle_feed_button.setStyleSheet("""        
+        self.toggle_feed_button.setStyleSheet("""
             QPushButton {
                 background-color: #4CAF50;
                 color: white;
@@ -290,7 +314,7 @@ class AdminWindow(QWidget):
         self.apply_threshold.setFixedWidth(80) # Adjust width as needed
         self.apply_threshold.clicked.connect(self.update_threshold)
         # Add specific styling for the apply button
-        self.apply_threshold.setStyleSheet("""        
+        self.apply_threshold.setStyleSheet("""
             QPushButton {
                 padding: 5px;
                 background-color: #4CAF50; /* Green background */
@@ -345,7 +369,7 @@ class AdminWindow(QWidget):
         # Button to add new person entries
         self.add_person_entry_button = QPushButton("+ Add Person")
         self.add_person_entry_button.setCursor(cursor_pointer)
-        self.add_person_entry_button.setStyleSheet("""        
+        self.add_person_entry_button.setStyleSheet("""
             QPushButton {
                 background-color: #8ab4f8; color: black; font-weight: bold;
                 border: none; border-radius: 4px; padding: 8px; max-width: 150px;
@@ -375,7 +399,7 @@ class AdminWindow(QWidget):
         # Add the "Train All" button below the scroll area
         self.train_all_button = QPushButton("Train All Added Persons")
         self.train_all_button.setCursor(cursor_pointer)
-        self.train_all_button.setStyleSheet("""        
+        self.train_all_button.setStyleSheet("""
             QPushButton {
                 background-color: #4CAF50; color: white; font-weight: bold;
                 border: none; border-radius: 4px; padding: 10px; margin-top: 10px;
@@ -402,7 +426,7 @@ class AdminWindow(QWidget):
         self.refresh_db_button = QPushButton("Refresh List")
         self.refresh_db_button.setCursor(cursor_pointer)
         self.refresh_db_button.clicked.connect(self.populate_database_list)
-        self.refresh_db_button.setStyleSheet("""        
+        self.refresh_db_button.setStyleSheet("""
             QPushButton {
                 background-color: #5f6368; color: white;
                 border: none; border-radius: 4px; padding: 6px 10px; max-width: 120px;
@@ -442,7 +466,7 @@ class AdminWindow(QWidget):
         self.refresh_records_button = QPushButton("Refresh Records")
         self.refresh_records_button.setCursor(cursor_pointer)
         self.refresh_records_button.clicked.connect(self.populate_records_table) # Connect refresh
-        self.refresh_records_button.setStyleSheet("""        
+        self.refresh_records_button.setStyleSheet("""
             QPushButton {
                 background-color: #5f6368; color: white;
                 border: none; border-radius: 4px; padding: 6px 10px; max-width: 150px;
@@ -629,14 +653,21 @@ class AdminWindow(QWidget):
                 border-radius: 6px;
                 background-color: None;
                 text-align: left;
+                color: white; /* Ensure default text is white */
+                border: none; /* Ensure no border by default */
             }
             *[class=sidebar-buttons]:checked {
                 background-color: white;
                 color: black;
             }
-            *[class=sidebar-buttons]:hover:!checked {
+            *[class=sidebar-buttons]:hover:!checked { /* Style hover only when not checked */
                 background-color: #3a3b3e;
             }
+            /* Specific hover for logout button (always not checked) */
+            QPushButton#logout_button:hover { /* Assuming you set objectName="logout_button" if needed, or rely on class */
+                 background-color: #3a3b3e;
+            }
+
             *[class=start-button] {
                 background-color: #4CAF50;
                 color: white;
@@ -680,11 +711,13 @@ class AdminWindow(QWidget):
             """
         )
 
+        # Update icons for checkable buttons initially
         self._update_icon_color(self.dashboard_button)
         self._update_icon_color(self.train_button)
         self._update_icon_color(self.database_button) # Update icon for new button
         self._update_icon_color(self.records_button) # Update icon for records button
         self._update_icon_color(self.settings_button)
+        # Logout button icon is set statically above
 
     def add_person_entry_widget(self):
         """Creates and adds a new PersonEntryWidget to the scroll area."""
@@ -976,7 +1009,7 @@ class AdminWindow(QWidget):
         if self.is_feed_running:
             self.camera_widget.stop_feed()
             self.toggle_feed_button.setText("Start Feed")
-            self.toggle_feed_button.setStyleSheet("""        
+            self.toggle_feed_button.setStyleSheet("""
                 QPushButton {
                     background-color: #4CAF50;
                     color: white;
@@ -993,7 +1026,7 @@ class AdminWindow(QWidget):
         else:
             self.camera_widget.start_feed()
             self.toggle_feed_button.setText("Stop Feed")
-            self.toggle_feed_button.setStyleSheet("""        
+            self.toggle_feed_button.setStyleSheet("""
                 QPushButton {
                     background-color: #f44336;
                     color: white;
@@ -1009,54 +1042,58 @@ class AdminWindow(QWidget):
             self.is_feed_running = True
 
     def _update_button_states(self, index, clicked_button):
-        # Uncheck all buttons first
+        # Uncheck all navigation buttons first
         self.dashboard_button.setChecked(False)
         self.train_button.setChecked(False)
         self.database_button.setChecked(False) # Add database button
         self.records_button.setChecked(False) # Add records button
         self.settings_button.setChecked(False)
 
-        # Check the clicked button
+        # Check the clicked navigation button
         clicked_button.setChecked(True)
 
         # Switch to the correct page in the stack
         self.contentStack.setCurrentIndex(index)
 
-        # Update icons for all buttons
+        # Update icons for all checkable buttons
         self._update_icon_color(self.dashboard_button)
         self._update_icon_color(self.train_button)
         self._update_icon_color(self.database_button) # Add database button
         self._update_icon_color(self.records_button) # Add records button
         self._update_icon_color(self.settings_button)
+        # Logout button icon is static, no need to update here
 
         # Populate records if switching to the records page
         if index == 3: # Index of the records page
             self.populate_records_table()
 
     def _update_icon_color(self, button):
+        """Updates the icon color based on the button's checked state."""
+        # This method now only handles checkable navigation buttons
         icon_base_name = ""
-        icon_folder = "src/gui/icons"
 
         if button == self.dashboard_button:
             icon_base_name = 'dashboard'
         elif button == self.train_button:
             icon_base_name = 'camera' # Consider renaming icon file if 'train' is better
         elif button == self.database_button: # Add database button case
-            icon_base_name = 'database' # This line handles the database icon
+            icon_base_name = 'database'
         elif button == self.records_button: # Add records button case
             icon_base_name = 'records'
         elif button == self.settings_button:
             icon_base_name = 'settings'
+        # Removed logout button case
 
         if icon_base_name:
             if button.isChecked():
-                icon_path = f"{icon_folder}/{icon_base_name}_black.svg"
+                icon_path = f"{self.icon_folder}/{icon_base_name}_black.svg"
             else:
-                icon_path = f"{icon_folder}/{icon_base_name}_white.svg"
+                icon_path = f"{self.icon_folder}/{icon_base_name}_white.svg"
 
             try:
-                icon = QIcon(QPixmap(icon_path)) # Using QPixmap for SVG might need QtSvg module
-                # Consider using QIcon(icon_path) directly if QtSvg is available and configured
+                # Using QPixmap for SVG might need QtSvg module installed
+                # but often works directly depending on Qt version/plugins.
+                icon = QIcon(QPixmap(icon_path))
                 if not icon.isNull():
                     button.setIcon(icon)
                 else:
@@ -1098,6 +1135,10 @@ class AdminWindow(QWidget):
         print("Populating database list...")
         try:
             found_files = False
+            # Ensure directory exists before listing
+            if not os.path.isdir(self.face_database_dir):
+                 raise FileNotFoundError(f"Database directory not found: {self.face_database_dir}")
+
             for filename in sorted(os.listdir(self.face_database_dir)):
                 if filename.endswith('.npz'):
                     found_files = True
@@ -1116,7 +1157,7 @@ class AdminWindow(QWidget):
                     delete_button = QPushButton("Delete")
                     delete_button.setCursor(cursor_pointer)
                     delete_button.setFixedWidth(80)
-                    delete_button.setStyleSheet("""        
+                    delete_button.setStyleSheet("""
                         QPushButton {
                             background-color: #f44336; color: white; font-weight: bold;
                             border: none; border-radius: 4px; padding: 5px;
@@ -1141,18 +1182,20 @@ class AdminWindow(QWidget):
             # Add a stretch at the end to push items to the top if the list is short
             self.database_list_layout.addStretch()
 
-        except FileNotFoundError:
-            print(f"Database directory not found: {self.face_database_dir}")
+        except FileNotFoundError as fnf_error:
+            print(fnf_error)
             error_label = QLabel(f"Error: Database directory not found at\n{self.face_database_dir}")
             error_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             error_label.setStyleSheet("color: #f28b82;")
             self.database_list_layout.addWidget(error_label)
+            self.database_list_layout.addStretch() # Push error msg up
         except Exception as e:
             print(f"Error populating database list: {e}")
             error_label = QLabel(f"An error occurred: {e}")
             error_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             error_label.setStyleSheet("color: #f28b82;")
             self.database_list_layout.addWidget(error_label)
+            self.database_list_layout.addStretch() # Push error msg up
 
     def delete_person_action(self, person_name):
         """Handles the deletion of a person from the database."""
@@ -1242,6 +1285,8 @@ class AdminWindow(QWidget):
                     self.records_table.setRowCount(1)
                     no_records_item = QTableWidgetItem("No detection records available yet.")
                     no_records_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    # Make item non-editable and non-selectable if desired
+                    no_records_item.setFlags(no_records_item.flags() ^ Qt.ItemFlag.ItemIsSelectable ^ Qt.ItemFlag.ItemIsEditable)
                     self.records_table.setItem(0, 0, no_records_item)
                     # Span the message across all columns
                     self.records_table.setSpan(0, 0, 1, self.records_table.columnCount())
@@ -1283,6 +1328,7 @@ class AdminWindow(QWidget):
                 self.records_table.setRowCount(1)
                 error_item = QTableWidgetItem("Could not retrieve records (Pipeline not ready).")
                 error_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                error_item.setFlags(error_item.flags() ^ Qt.ItemFlag.ItemIsSelectable ^ Qt.ItemFlag.ItemIsEditable)
                 self.records_table.setItem(0, 0, error_item)
                 self.records_table.setSpan(0, 0, 1, self.records_table.columnCount())
 
@@ -1293,12 +1339,14 @@ class AdminWindow(QWidget):
             self.records_table.setRowCount(1)
             error_item = QTableWidgetItem(f"Error loading records: {e}")
             error_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            error_item.setFlags(error_item.flags() ^ Qt.ItemFlag.ItemIsSelectable ^ Qt.ItemFlag.ItemIsEditable)
             self.records_table.setItem(0, 0, error_item)
             self.records_table.setSpan(0, 0, 1, self.records_table.columnCount())
 
     def apply_settings(self):
         """Applies the settings from the Settings page."""
         print("Applying settings...")
+        settings_applied = []
         try:
             # Apply Log Interval
             log_interval_str = self.log_interval_input.text()
@@ -1309,6 +1357,7 @@ class AdminWindow(QWidget):
                 if hasattr(self.camera_widget, 'pipeline') and self.camera_widget.pipeline:
                     self.camera_widget.pipeline.set_log_interval(log_interval)
                     print(f"Log interval set to: {log_interval} seconds")
+                    settings_applied.append("Log Interval")
                 else:
                     print("Warning: Camera pipeline not available to set log interval.")
                     # Optionally store and apply later if needed
@@ -1321,13 +1370,22 @@ class AdminWindow(QWidget):
             train_interval_state, train_interval_val, _ = self.train_interval_input.validator().validate(train_interval_str, 0)
 
             if train_interval_state == QIntValidator.State.Acceptable:
-                self.training_frame_interval = int(train_interval_val)
-                print(f"Training frame interval set to: {self.training_frame_interval} frames")
+                new_interval = int(train_interval_val)
+                if new_interval != self.training_frame_interval:
+                    self.training_frame_interval = new_interval
+                    print(f"Training frame interval set to: {self.training_frame_interval} frames")
+                    settings_applied.append("Training Frame Interval")
+                else:
+                    print("Training frame interval unchanged.") # Avoid redundant message
             else:
                  QMessageBox.warning(self, "Invalid Input", f"Training Frame Interval must be a number between 1 and 100. Input was '{train_interval_str}'.")
                  return # Stop applying if one setting is invalid
 
-            QMessageBox.information(self, "Settings Applied", "Settings have been successfully updated.")
+            if settings_applied:
+                QMessageBox.information(self, "Settings Applied", f"{', '.join(settings_applied)} updated successfully.")
+            else:
+                QMessageBox.information(self, "Settings", "No settings were changed.")
+
 
         except ValueError as e:
             QMessageBox.critical(self, "Error", f"Invalid input for settings: {e}")
@@ -1336,13 +1394,39 @@ class AdminWindow(QWidget):
             QMessageBox.critical(self, "Error", f"An unexpected error occurred while applying settings: {e}")
             print(f"Unexpected error applying settings: {e}")
 
+    def logout_action(self):
+        """Logs out the admin, closes the admin window, and shows the login window."""
+        print("Logging out...")
+        # Stop camera feed if running
+        if self.is_feed_running:
+            self.toggle_camera_feed() # This handles stopping the feed and updating button
+
+        # Close the admin window
+        self.close()
+
+        # Reset and show the login window (accessing global 'window')
+        username.clear()
+        password.clear()
+        error_label.hide()
+        window.show()
+
+    def closeEvent(self, event):
+        """Ensure camera feed stops when the admin window is closed."""
+        print("Admin window closing...")
+        if self.is_feed_running:
+            # Assuming stop_feed correctly releases the camera and stops threads/timers
+            self.camera_widget.stop_feed()
+            print("Camera feed stopped due to window close.")
+        # Removed the call to self.camera_widget.cleanup() as it doesn't exist
+        event.accept() # Accept the close event
+
 
 def login():
     if username.text() == ADMIN_USERNAME and password.text() == ADMIN_PASSWORD:
         global admin_window
         admin_window = AdminWindow()
         admin_window.show()
-        window.close()
+        window.hide() # Hide login window instead of closing
     else:
         error_label.setText("Invalid username or password.")
         error_label.show()
@@ -1447,5 +1531,7 @@ app.setStyleSheet(
 )
 
 # --- Show Window and Run Application ---
+# Define admin_window globally so it can be accessed in login/logout
+admin_window = None
 window.show()
 sys.exit(app.exec())
