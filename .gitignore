@@ -6,3 +6,4 @@ src/backend/face_database/*
 
 .venv
 uv.lock
+logs
