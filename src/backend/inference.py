@@ -13,7 +13,6 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QStackedLayout
 from PyQt6.QtCore import QTimer, pyqtSignal, Qt
 from PyQt6.QtGui import QImage, QPixmap, QColor
 
-LOG_INTERVAL = 15 # Seconds between logging the same person
 LOG_FILE_PATH = './logs/detection_log.csv' # Define log file path
 LOG_DIR = os.path.dirname(LOG_FILE_PATH)
 
@@ -26,6 +25,7 @@ class FaceRecognitionPipeline:
         self.lock = threading.Lock() # Ensure lock is initialized before loading
         self.detection_log = deque(maxlen=100) # Store last 100 detections (name, timestamp, similarity)
         self.last_log_time_per_person = {} # Tracks last log time for each person
+        self.log_interval = 15 # Default log interval in seconds (now an instance variable)
 
         # Ensure log directory exists
         os.makedirs(LOG_DIR, exist_ok=True)
@@ -245,7 +245,8 @@ class FaceRecognitionPipeline:
                                  # --- Log the detection event (with time interval check) ---
                                  current_time = time.time()
                                  last_log_time = self.last_log_time_per_person.get(person_label, 0)
-                                 if current_time - last_log_time > LOG_INTERVAL:
+                                 # Use the instance variable for log interval check
+                                 if current_time - last_log_time > self.log_interval:
                                      log_entry = (person_label, current_time, best_score)
                                      self.detection_log.append(log_entry)
                                      self.last_log_time_per_person[person_label] = current_time
@@ -360,6 +361,19 @@ class FaceRecognitionPipeline:
         with self.lock: # Ensure thread-safe access
             return list(self.detection_log) # Return a copy as a list
 
+    def set_log_interval(self, interval_seconds):
+        """Sets the minimum interval between logging the same person."""
+        if isinstance(interval_seconds, (int, float)) and interval_seconds >= 0:
+            with self.lock: # Ensure thread-safe update if accessed concurrently
+                self.log_interval = interval_seconds
+            print(f"Log interval updated to {self.log_interval} seconds.")
+        else:
+            print(f"Invalid log interval value: {interval_seconds}. Must be a non-negative number.")
+
+    def get_log_interval(self):
+        """Returns the current log interval."""
+        with self.lock: # Ensure thread-safe access
+            return self.log_interval
 
 class CameraWidget(QWidget):
     def __init__(self, parent=None):

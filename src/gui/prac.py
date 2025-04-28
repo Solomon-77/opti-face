@@ -4,7 +4,7 @@ import shutil
 import numpy as np
 import torch
 import cv2 # Added for video processing
-from datetime import datetime # Added for timestamp formatting
+import datetime # Added for timestamp formatting
 from PyQt6.QtWidgets import (
     QApplication,
     QWidget,
@@ -18,13 +18,14 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QMessageBox,
     QScrollArea, # Added
-    QFrame,      # Added for separators
+    QFrame,      # Re-added for settings container
     QTableWidget, # Added for records
     QTableWidgetItem, # Added for records table items
     QHeaderView, # Added for table header styling
+    QFormLayout, # Added for settings page
 )
 from PyQt6.QtCore import Qt, QTimer, QSize
-from PyQt6.QtGui import QCursor, QIcon, QPixmap
+from PyQt6.QtGui import QCursor, QIcon, QPixmap, QIntValidator # Added QIntValidator
 from src.backend.inference import CameraWidget
 # Import the necessary function and utility from backend
 from src.backend.prepare_embeddings import generate_and_save_embeddings
@@ -148,6 +149,7 @@ class AdminWindow(QWidget):
         self.is_feed_running = False # Track feed state
         self.face_database_dir = './src/backend/face_database/' # Define database path
         self.person_entry_widgets = [] # List to hold PersonEntryWidget instances
+        self.training_frame_interval = 5 # Default value, will be configurable
 
         # Load the face recognition model once for training tasks
         # Handle potential errors during model loading
@@ -440,7 +442,7 @@ class AdminWindow(QWidget):
         self.refresh_records_button = QPushButton("Refresh Records")
         self.refresh_records_button.setCursor(cursor_pointer)
         self.refresh_records_button.clicked.connect(self.populate_records_table) # Connect refresh
-        self.refresh_records_button.setStyleSheet("""
+        self.refresh_records_button.setStyleSheet("""        
             QPushButton {
                 background-color: #5f6368; color: white;
                 border: none; border-radius: 4px; padding: 6px 10px; max-width: 150px;
@@ -506,10 +508,93 @@ class AdminWindow(QWidget):
 
         # --- Settings page ---
         settings_page = QWidget()
-        settings_layout = QVBoxLayout(settings_page)
-        settings_label = QLabel("This is settings.")
-        settings_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        settings_layout.addWidget(settings_label)
+        settings_main_layout = QVBoxLayout(settings_page) # Use a QVBoxLayout for overall structure
+        settings_main_layout.setContentsMargins(25, 25, 25, 25)
+        settings_main_layout.setSpacing(15)
+        settings_main_layout.setAlignment(Qt.AlignmentFlag.AlignTop) # Align content to top
+
+        # Settings Container (Card)
+        settings_container = QFrame() # Use QFrame for styling capabilities
+        settings_container.setObjectName("settingsCard") # Assign object name for styling
+        settings_container_layout = QVBoxLayout(settings_container)
+        settings_container_layout.setContentsMargins(20, 20, 20, 20) # Padding inside the card
+        settings_container_layout.setSpacing(15) # Spacing inside the card
+
+        settings_label = QLabel("Application Settings")
+        # Apply consistent header styling - REMOVED margin-bottom
+        settings_label.setStyleSheet("font-size: 16px; font-weight: bold; background: none;")
+        settings_container_layout.addWidget(settings_label)
+
+        # Add spacing before the form layout
+        settings_container_layout.addSpacing(10) # Add 10px spacing here
+
+        # Use QFormLayout for label-input pairs
+        settings_form_layout = QFormLayout()
+        settings_form_layout.setSpacing(12) # Spacing between rows
+        # Change label alignment to Left
+        settings_form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter) # Align labels left and vertically center
+        # Apply consistent label styling via stylesheet later if needed, or inline:
+        settings_form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow) # Allow fields to expand
+
+        # Log Interval Setting
+        log_interval_label = QLabel("Log Interval (seconds):")
+        log_interval_label.setStyleSheet("background: none; font-weight: 600;") # Consistent label style
+        self.log_interval_input = QLineEdit()
+        self.log_interval_input.setPlaceholderText("e.g., 15") # Shortened placeholder
+        # Set initial value from pipeline default if possible, otherwise use a sensible default
+        default_log_interval = 15 # Default if pipeline isn't ready yet
+        if hasattr(self.camera_widget, 'pipeline') and self.camera_widget.pipeline:
+             default_log_interval = self.camera_widget.pipeline.get_log_interval()
+        self.log_interval_input.setText(str(default_log_interval))
+        self.log_interval_input.setValidator(QIntValidator(0, 100, self)) # Limit 0-100
+        self.log_interval_input.setFixedWidth(80) # Reduced width slightly
+        # Consistent input styling
+        self.log_interval_input.setStyleSheet("""
+            QLineEdit {
+                padding: 6px; border: 1px solid #5f6368; border-radius: 4px;
+                background-color: #3a3b3e; color: white;
+            }
+            QLineEdit:focus { border: 1px solid #8ab4f8; }
+        """)
+        settings_form_layout.addRow(log_interval_label, self.log_interval_input)
+
+        # Training Frame Interval Setting
+        train_interval_label = QLabel("Training Frame Interval:")
+        train_interval_label.setStyleSheet("background: none; font-weight: 600;") # Consistent label style
+        self.train_interval_input = QLineEdit()
+        self.train_interval_input.setPlaceholderText("e.g., 5") # Shortened placeholder
+        self.train_interval_input.setText(str(self.training_frame_interval)) # Use instance variable default
+        self.train_interval_input.setValidator(QIntValidator(1, 100, self)) # Limit 1-100
+        self.train_interval_input.setFixedWidth(80) # Reduced width slightly
+        # Consistent input styling
+        self.train_interval_input.setStyleSheet("""
+             QLineEdit {
+                padding: 6px; border: 1px solid #5f6368; border-radius: 4px;
+                background-color: #3a3b3e; color: white;
+             }
+             QLineEdit:focus { border: 1px solid #8ab4f8; }
+        """)
+        settings_form_layout.addRow(train_interval_label, self.train_interval_input)
+
+        settings_container_layout.addLayout(settings_form_layout) # Add form layout to container layout
+
+        # Apply Settings Button
+        self.apply_settings_button = QPushButton("Apply Settings")
+        self.apply_settings_button.setCursor(cursor_pointer)
+        self.apply_settings_button.clicked.connect(self.apply_settings)
+        # Consistent primary button styling
+        self.apply_settings_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50; color: white; font-weight: bold;
+                border: none; border-radius: 4px; padding: 8px 15px; margin-top: 10px; /* Adjusted margin */
+                max-width: 150px;
+            }
+            QPushButton:hover { background-color: #45a049; }
+        """)
+        settings_container_layout.addWidget(self.apply_settings_button, alignment=Qt.AlignmentFlag.AlignLeft) # Align button left within the card
+
+        settings_main_layout.addWidget(settings_container) # Add the container card to the main page layout
+        settings_main_layout.addStretch() # Add stretch to push the card to the top
 
         # Add pages to stack
         self.contentStack.addWidget(dashboard_page)
@@ -577,6 +662,20 @@ class AdminWindow(QWidget):
             #camera-label {
                 font-size: 14px;
                 font-weight: 600;
+            }
+            /* Style for the settings container card */
+            #settingsCard {
+                background-color: #2a2b2e; /* Match sidebar/card background */
+                border-radius: 6px;
+                /* Optional: Add a subtle border if desired */
+                /* border: 1px solid #3a3b3e; */
+            }
+            /* General styling for labels within the form layout if needed */
+            QFormLayout QLabel {
+                 font-size: 13px; /* Adjust as needed */
+                 /* font-weight: 600; Already applied inline */
+                 background: none; /* Ensure no background */
+                 /* padding-right: 10px; Remove or adjust padding if left-aligned */
             }
             """
         )
@@ -762,7 +861,8 @@ class AdminWindow(QWidget):
 
                 frame_count = 0
                 saved_frame_count = 0
-                frame_interval = 5
+                # Use the configured frame interval
+                frame_interval = self.training_frame_interval # Use instance variable
 
                 while True:
                     ret, frame = cap.read()
@@ -1153,7 +1253,7 @@ class AdminWindow(QWidget):
                     name, timestamp, similarity = record
 
                     # Format timestamp
-                    dt_object = datetime.fromtimestamp(timestamp)
+                    dt_object = datetime.datetime.fromtimestamp(timestamp)
                     date_str = dt_object.strftime("%Y-%m-%d")
                     # Change time format to 12-hour AM/PM
                     time_str = dt_object.strftime("%I:%M %p")
@@ -1195,6 +1295,46 @@ class AdminWindow(QWidget):
             error_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.records_table.setItem(0, 0, error_item)
             self.records_table.setSpan(0, 0, 1, self.records_table.columnCount())
+
+    def apply_settings(self):
+        """Applies the settings from the Settings page."""
+        print("Applying settings...")
+        try:
+            # Apply Log Interval
+            log_interval_str = self.log_interval_input.text()
+            log_interval_state, log_interval_val, _ = self.log_interval_input.validator().validate(log_interval_str, 0)
+
+            if log_interval_state == QIntValidator.State.Acceptable:
+                log_interval = int(log_interval_val)
+                if hasattr(self.camera_widget, 'pipeline') and self.camera_widget.pipeline:
+                    self.camera_widget.pipeline.set_log_interval(log_interval)
+                    print(f"Log interval set to: {log_interval} seconds")
+                else:
+                    print("Warning: Camera pipeline not available to set log interval.")
+                    # Optionally store and apply later if needed
+            else:
+                QMessageBox.warning(self, "Invalid Input", f"Log Interval must be a number between 0 and 100. Input was '{log_interval_str}'.")
+                return # Stop applying if one setting is invalid
+
+            # Apply Training Frame Interval
+            train_interval_str = self.train_interval_input.text()
+            train_interval_state, train_interval_val, _ = self.train_interval_input.validator().validate(train_interval_str, 0)
+
+            if train_interval_state == QIntValidator.State.Acceptable:
+                self.training_frame_interval = int(train_interval_val)
+                print(f"Training frame interval set to: {self.training_frame_interval} frames")
+            else:
+                 QMessageBox.warning(self, "Invalid Input", f"Training Frame Interval must be a number between 1 and 100. Input was '{train_interval_str}'.")
+                 return # Stop applying if one setting is invalid
+
+            QMessageBox.information(self, "Settings Applied", "Settings have been successfully updated.")
+
+        except ValueError as e:
+            QMessageBox.critical(self, "Error", f"Invalid input for settings: {e}")
+            print(f"Error applying settings: {e}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An unexpected error occurred while applying settings: {e}")
+            print(f"Unexpected error applying settings: {e}")
 
 
 def login():
