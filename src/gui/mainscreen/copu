@@ -1,10 +1,9 @@
 from PyQt6.QtWidgets import (
     QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QStackedWidget, QSpacerItem, QSizePolicy, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QLineEdit, QSpinBox, QFileDialog, QMessageBox, QProgressDialog,
+    QLineEdit, QSpinBox, QFileDialog, QMessageBox, QDialog, QProgressBar ,QGridLayout, QProgressDialog,
 )
-from src.backend.api.training.trainingthread import ImageTrainingThread
-from src.backend.api.training.trainingthread import TrainingThread
 from src.backend.api.auth.session_manager import SessionManager
+from src.backend.api.training.trainingthread import TrainingThread
 from src.backend.inference import CameraWidget
 from PyQt6.QtCore import Qt, QSize, QTimer
 from PyQt6.QtGui import QCursor
@@ -157,7 +156,7 @@ class MainScreen(QWidget):
 
         # Arrange the top layout (label and button)
         camera_top_layout.addWidget(camera_label)
-        camera_top_layout.addStretch()
+        camera_top_layout.addStretch()  # Push button to the right
         camera_top_layout.addWidget(self.toggle_feed_button)
 
         # Camera widget
@@ -186,7 +185,7 @@ class MainScreen(QWidget):
 
         self.apply_threshold = QPushButton("Apply")
         self.apply_threshold.setCursor(cursor_pointer)
-        self.apply_threshold.setFixedWidth(80)
+        self.apply_threshold.setFixedWidth(80)  # Adjust width as needed
         self.apply_threshold.clicked.connect(self.update_threshold)
         self.apply_threshold.setStyleSheet("""
             QPushButton {
@@ -201,11 +200,13 @@ class MainScreen(QWidget):
             }
         """)
 
+        # Add widgets directly to the horizontal card layout
         threshold_card_layout.addWidget(threshold_label)
         threshold_card_layout.addWidget(self.threshold_input)
         threshold_card_layout.addWidget(self.apply_threshold)
-        threshold_card_layout.addStretch()
+        threshold_card_layout.addStretch()  # Push elements to the left
 
+        # Apply additional styles for the threshold card
         threshold_card.setStyleSheet("""
             QWidget { /* Apply to the card itself */
                 background-color: #2a2b2e;
@@ -328,111 +329,27 @@ class MainScreen(QWidget):
 
     def _build_image_training_controls(self):
         self._clear_info_area()
-        cursor = QCursor(Qt.CursorShape.PointingHandCursor)
 
-        card = QWidget()
-        v = QVBoxLayout(card)
-        v.setContentsMargins(15,10,15,10)
-        v.setSpacing(15)
-        card.setStyleSheet("background-color: #2a2b2e; border-radius: 8px;")
+        image_training_card = QWidget()
+        image_training_layout = QVBoxLayout(image_training_card)
+        image_training_layout.setContentsMargins(15, 10, 15, 10)
+        image_training_layout.setSpacing(15)
+        image_training_card.setStyleSheet("""
+            background-color: #2a2b2e;
+            border-radius: 8px;
+        """)
 
-        back = self._create_back_button()
-        title = QLabel("Train from Image Inputs")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet("color: white; font-size: 16px; font-weight: bold;")
+        back_button = self._create_back_button()
 
-        top = QHBoxLayout()
-        top.addWidget(back); top.addWidget(title); top.addStretch()
-        v.addLayout(top)
+        label = QLabel("Training from Images...")
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label.setStyleSheet("color: white; font-size: 16px;")
 
-        row = QWidget(); h = QHBoxLayout(row)
-        h.setContentsMargins(15,10,15,10); h.setSpacing(10)
+        image_training_layout.addWidget(back_button)
+        image_training_layout.addWidget(label)
+        image_training_layout.addStretch()
 
-        self.person_name_input = QLineEdit()
-        self.person_name_input.setPlaceholderText("Person's Name")
-        self.person_name_input.setFixedWidth(150)
-        self.person_name_input.setStyleSheet(
-            "QLineEdit { padding:5px; border:1px solid #5f6368;"
-            " border-radius:4px; background-color:#3a3b3e; color:white;}"
-            "QLineEdit:focus{border:1px solid #8ab4f8;}"
-        )
-
-        select_btn = QPushButton("Upload Images")
-        select_btn.setCursor(cursor); select_btn.setFixedWidth(120)
-        select_btn.clicked.connect(self._select_images)
-        select_btn.setStyleSheet(
-            "QPushButton{background-color:#4CAF50; color:white; border:none;"
-            "border-radius:4px; padding:8px;}"
-            "QPushButton:hover{background-color:#45a049;}"
-        )
-
-        self.images_label = QLabel("No images selected")
-        self.images_label.setFixedWidth(200)
-        self.images_label.setWordWrap(True)
-        self.images_label.setStyleSheet("color:#cccccc; font-size:12px;")
-
-        self.image_train_btn = QPushButton("Train")
-        self.image_train_btn.setCursor(cursor); self.image_train_btn.setFixedWidth(80)
-        self.image_train_btn.clicked.connect(self._image_train_model)
-        self.image_train_btn.setStyleSheet(
-            "QPushButton{background-color:#2196F3; color:white; border:none;"
-            "border-radius:4px; padding:8px;}"
-            "QPushButton:hover{background-color:#1976D2;}"
-        )
-
-        for w in (self.person_name_input, select_btn, self.images_label, self.image_train_btn):
-            h.addWidget(w)
-        h.addStretch()
-        v.addWidget(row)
-        v.addStretch()
-
-        self.info_layout.addWidget(card)
-
-    def _select_images(self):
-        paths, _ = QFileDialog.getOpenFileNames(
-            self, "Select Image Files", "", "Images (*.png *.jpg *.jpeg)"
-        )
-        if paths:
-            self.selected_image_paths = paths
-            self.images_label.setText(f"{len(paths)} image(s) selected")
-
-    def _image_train_model(self):
-        name = getattr(self.person_name_input, 'text', lambda: '')().strip()
-        if not name:
-            QMessageBox.warning(self, "Input Error", "Person's name cannot be empty.")
-            return
-        if not hasattr(self, 'selected_image_paths') or not self.selected_image_paths:
-            QMessageBox.warning(self, "Input Error", "Please upload at least one image.")
-            return
-
-        temp_dir = os.path.join("./temp_images", name)
-        if os.path.exists(temp_dir): shutil.rmtree(temp_dir)
-        os.makedirs(temp_dir)
-        for img in self.selected_image_paths:
-            shutil.copy(img, temp_dir)
-
-        self.image_train_btn.setEnabled(False)
-        self.progress = QProgressDialog("Training in progress...", None, 0, 0, self)
-        self.progress.setWindowModality(Qt.WindowModality.ApplicationModal)
-        self.progress.setCancelButton(None)
-        self.progress.setMinimumDuration(0)
-        self.progress.show()
-
-        self.img_worker = ImageTrainingThread(temp_dir, name)
-        self.img_worker.finished_signal.connect(self._on_image_training_finished)
-        self.img_worker.error_signal.connect(self._on_image_training_error)
-        self.img_worker.start()
-
-    def _on_image_training_finished(self):
-        self.progress.close()
-        self.image_train_btn.setEnabled(True)
-        QMessageBox.information(self, "Training Complete", "Image-based training completed.")
-
-    def _on_image_training_error(self, msg):
-        self.progress.close()
-        self.image_train_btn.setEnabled(True)
-        QMessageBox.critical(self, "Training Failed", f"Error: {msg}")
-
+        self.info_layout.addWidget(image_training_card)
 # kodk
     def _build_video_training_controls(self):
         self._clear_info_area()
@@ -495,18 +412,18 @@ class MainScreen(QWidget):
         self.video_path_label.setFixedWidth(200)
         self.video_path_label.setWordWrap(True)
 
-        self.train_video_button = QPushButton("Train")
-        self.train_video_button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.train_video_button.setFixedWidth(80)
-        self.train_video_button.clicked.connect(self._video_train_model)
-        self.train_video_button.setStyleSheet(
+        self.train_button = QPushButton("Train")
+        self.train_button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.train_button.setFixedWidth(80)
+        self.train_button.clicked.connect(self._train_model)
+        self.train_button.setStyleSheet(
             "QPushButton { background-color: #2196F3; color: white;"
             " font-weight: bold; border: none; border-radius: 4px; padding: 8px; }"
             "QPushButton:hover { background-color: #1976D2; }"
         )
 
         for w in [self.person_name_input, self.fps_input,
-                  upload_button, self.video_path_label, self.train_video_button]:
+                  upload_button, self.video_path_label, self.train_button]:
             inputs_layout.addWidget(w)
         inputs_layout.addStretch()
         video_training_layout.addWidget(inputs_row)
@@ -522,7 +439,7 @@ class MainScreen(QWidget):
             self.selected_video_path = path
             self.video_path_label.setText(os.path.basename(path))
 
-    def _video_train_model(self):
+    def _train_model(self):
         name = self.person_name_input.text().strip()
         fps_text = self.fps_input.text().strip()
 
@@ -545,7 +462,7 @@ class MainScreen(QWidget):
             shutil.rmtree(output_folder)
         os.makedirs(output_folder)
 
-        self.train_video_button.setEnabled(False)
+        self.train_button.setEnabled(False)
         self.progress = QProgressDialog("Training in progress...", None, 0, 0, self)
         self.progress.setWindowModality(Qt.WindowModality.ApplicationModal)
         self.progress.setCancelButton(None)
@@ -564,12 +481,12 @@ class MainScreen(QWidget):
 
     def _on_training_finished(self):
         self.progress.close()
-        self.train_video_button.setEnabled(True)
+        self.train_button.setEnabled(True)
         QMessageBox.information(self, "Training Complete", "Model training completed successfully.")
 
     def _on_training_error(self, message):
         self.progress.close()
-        self.train_video_button.setEnabled(True)
+        self.train_button.setEnabled(True)
         QMessageBox.critical(self, "Training Failed", f"An error occurred: {message}")
 
     def _create_back_button(self):
@@ -639,11 +556,11 @@ class MainScreen(QWidget):
     def toggle_feed(self):
         """Toggles the camera feed on or off."""
         if self.toggle_feed_button.text() == "Start Feed":
-            self.camera_widget.start_feed()
-            self.toggle_feed_button.setText("Stop Feed")
+            self.camera_widget.start_feed()  # Start the camera feed
+            self.toggle_feed_button.setText("Stop Feed")  # Change button text to "Stop Feed"
         else:
-            self.camera_widget.stop_feed()
-            self.toggle_feed_button.setText("Start Feed")
+            self.camera_widget.stop_feed()  # Stop the camera feed
+            self.toggle_feed_button.setText("Start Feed")  # Change button text to "Start Feed"
 
     def update_threshold(self):
         """Updates the face recognition threshold."""
@@ -651,6 +568,6 @@ class MainScreen(QWidget):
         try:
             threshold_value = float(threshold_value)
             if 0.0 <= threshold_value <= 1.0:
-                self.camera_widget.set_recognition_threshold(threshold_value)
+                self.camera_widget.set_recognition_threshold(threshold_value)  # Update threshold in CameraWidget
         except ValueError:
-            pass
+            pass  # Ignore invalid threshold input
