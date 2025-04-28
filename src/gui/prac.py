@@ -344,7 +344,7 @@ class AdminWindow(QWidget):
         # Scroll Area for Person Entries
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setStyleSheet("QScrollArea { border: none; background-color: #202124; padding: 5px; }") # Style scroll area
+        self.scroll_area.setStyleSheet("QScrollArea { border: none; background-color: #202124; }") # Style scroll area
 
         # Container widget inside Scroll Area
         self.scroll_content_widget = QWidget()
