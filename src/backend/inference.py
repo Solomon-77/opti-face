@@ -5,12 +5,17 @@ import threading
 import queue
 import os
 import time
+import csv # Added for CSV logging
 from collections import deque # Use deque for efficient fixed-size log
 from torch.nn.functional import cosine_similarity
 from src.backend.utils.face_utils import detect_faces, align_face, load_face_recognition_model, transform
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QStackedLayout
 from PyQt6.QtCore import QTimer, pyqtSignal, Qt
 from PyQt6.QtGui import QImage, QPixmap, QColor
+
+LOG_INTERVAL = 15 # Seconds between logging the same person
+LOG_FILE_PATH = './logs/detection_log.csv' # Define log file path
+LOG_DIR = os.path.dirname(LOG_FILE_PATH)
 
 class FaceRecognitionPipeline:
     def __init__(self):
@@ -20,6 +25,12 @@ class FaceRecognitionPipeline:
         self.saved_labels = []
         self.lock = threading.Lock() # Ensure lock is initialized before loading
         self.detection_log = deque(maxlen=100) # Store last 100 detections (name, timestamp, similarity)
+        self.last_log_time_per_person = {} # Tracks last log time for each person
+
+        # Ensure log directory exists
+        os.makedirs(LOG_DIR, exist_ok=True)
+        # Load existing logs from file
+        self._load_logs_from_file()
 
         # Initial loading of embeddings
         self._load_all_embeddings()
@@ -40,6 +51,63 @@ class FaceRecognitionPipeline:
         # Start alignment and recognition worker threads
         threading.Thread(target=self._alignment_worker, daemon=True).start()
         threading.Thread(target=self._recognition_worker, daemon=True).start()
+
+    def _load_logs_from_file(self):
+        """Loads previous detection logs from the CSV file into the deque."""
+        try:
+            if os.path.exists(LOG_FILE_PATH):
+                print(f"Loading logs from {LOG_FILE_PATH}...")
+                loaded_count = 0
+                with open(LOG_FILE_PATH, 'r', newline='') as csvfile:
+                    reader = csv.reader(csvfile)
+                    header = next(reader, None) # Skip header if exists
+                    if header != ['Name', 'Timestamp', 'Similarity']:
+                         print("Warning: Log file header mismatch or missing. Attempting to read anyway.")
+                         # Reset reader if header was missing or incorrect to read from start
+                         csvfile.seek(0)
+                         reader = csv.reader(csvfile)
+
+                    temp_logs = []
+                    for row in reader:
+                        try:
+                            if len(row) == 3:
+                                name, timestamp_str, similarity_str = row
+                                timestamp = float(timestamp_str)
+                                similarity = float(similarity_str)
+                                temp_logs.append((name, timestamp, similarity))
+                                loaded_count += 1
+                            else:
+                                print(f"Skipping malformed log row: {row}")
+                        except ValueError as e:
+                            print(f"Skipping row due to parsing error ({e}): {row}")
+                        except Exception as e:
+                             print(f"Unexpected error reading log row ({e}): {row}")
+
+                    # Sort by timestamp and take the latest N (up to maxlen)
+                    temp_logs.sort(key=lambda x: x[1])
+                    # Use extend which efficiently adds items to the deque respecting maxlen
+                    self.detection_log.extend(temp_logs)
+                    print(f"Loaded {loaded_count} log entries. Deque size: {len(self.detection_log)}")
+
+            else:
+                print(f"Log file {LOG_FILE_PATH} not found. Starting fresh.")
+                # Create the file with header if it doesn't exist
+                with open(LOG_FILE_PATH, 'w', newline='') as csvfile:
+                    writer = csv.writer(csvfile)
+                    writer.writerow(['Name', 'Timestamp', 'Similarity']) # Write header
+
+        except Exception as e:
+            print(f"Error loading log file {LOG_FILE_PATH}: {e}")
+
+    def _append_log_to_file(self, person_label, timestamp, similarity):
+        """Appends a single detection log entry to the CSV file."""
+        try:
+            # Open in append mode, create if doesn't exist (though __init__ should handle creation)
+            with open(LOG_FILE_PATH, 'a', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow([person_label, timestamp, similarity])
+        except Exception as e:
+            print(f"Error writing to log file {LOG_FILE_PATH}: {e}")
 
     def _load_all_embeddings(self):
         """Loads all embeddings from the database directory."""
@@ -174,13 +242,19 @@ class FaceRecognitionPipeline:
                              # Check index bounds just in case
                              if best_idx < len(self.saved_labels):
                                  person_label = self.saved_labels[best_idx]
-                                 # --- Log the detection event ---
-                                 timestamp = time.time()
-                                 self.detection_log.append((person_label, timestamp, best_score))
-                                 # -----------------------------
+                                 # --- Log the detection event (with time interval check) ---
+                                 current_time = time.time()
+                                 last_log_time = self.last_log_time_per_person.get(person_label, 0)
+                                 if current_time - last_log_time > LOG_INTERVAL:
+                                     log_entry = (person_label, current_time, best_score)
+                                     self.detection_log.append(log_entry)
+                                     self.last_log_time_per_person[person_label] = current_time
+                                     # Append to file immediately after adding to deque
+                                     self._append_log_to_file(person_label, current_time, best_score)
+                                     # print(f"Logged detection for {person_label} at {current_time}") # Optional debug print
+                                 # ---------------------------------------------------------
                              else:
                                  print(f"Warning: best_idx {best_idx} out of bounds for saved_labels (len {len(self.saved_labels)})")
-
 
                         self.results[face_id].update({
                             'name': person_label,
@@ -199,7 +273,7 @@ class FaceRecognitionPipeline:
 
 
     def process_frame(self, frame, recognition_threshold=0.6):
-        """Detect, align, and recognize faces in a video frame."""
+        """Detect, align, and recognize faces in a video frame."""        
         self.recognition_threshold = recognition_threshold  # Store the threshold
         if not isinstance(frame, np.ndarray) or frame.size == 0:
             return frame

@@ -415,7 +415,8 @@ class AdminWindow(QWidget):
 
         self.db_scroll_area = QScrollArea()
         self.db_scroll_area.setWidgetResizable(True)
-        self.db_scroll_area.setStyleSheet("QScrollArea { border: 1px solid #3a3b3e; background-color: #2a2b2e; border-radius: 6px; }") # Style scroll area
+        # Remove border from the stylesheet below
+        self.db_scroll_area.setStyleSheet("QScrollArea { border: none; background-color: #2a2b2e; border-radius: 6px; }") # Style scroll area
 
         self.db_scroll_content_widget = QWidget()
         self.db_scroll_area.setWidget(self.db_scroll_content_widget)
@@ -1154,7 +1155,8 @@ class AdminWindow(QWidget):
                     # Format timestamp
                     dt_object = datetime.fromtimestamp(timestamp)
                     date_str = dt_object.strftime("%Y-%m-%d")
-                    time_str = dt_object.strftime("%H:%M:%S")
+                    # Change time format to 12-hour AM/PM
+                    time_str = dt_object.strftime("%I:%M %p")
                     accuracy_str = f"{similarity:.2f}" # Format similarity
 
                     # Create table items
