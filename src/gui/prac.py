@@ -4,6 +4,7 @@ import shutil
 import numpy as np
 import torch
 import cv2 # Added for video processing
+from datetime import datetime # Added for timestamp formatting
 from PyQt6.QtWidgets import (
     QApplication,
     QWidget,
@@ -18,6 +19,9 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QScrollArea, # Added
     QFrame,      # Added for separators
+    QTableWidget, # Added for records
+    QTableWidgetItem, # Added for records table items
+    QHeaderView, # Added for table header styling
 )
 from PyQt6.QtCore import Qt, QTimer, QSize
 from PyQt6.QtGui import QCursor, QIcon, QPixmap
@@ -197,6 +201,14 @@ class AdminWindow(QWidget):
         self.database_button.setProperty("class", "sidebar-buttons")
         self.database_button.setCheckable(True)
         sidebar_layout.addWidget(self.database_button)
+
+        # Records button (New)
+        self.records_button = QPushButton("Records")
+        self.records_button.setIconSize(QSize(18, 18))
+        self.records_button.setCursor(cursor_pointer)
+        self.records_button.setProperty("class", "sidebar-buttons")
+        self.records_button.setCheckable(True)
+        sidebar_layout.addWidget(self.records_button)
 
         # Settings button
         self.settings_button = QPushButton("Settings")
@@ -388,7 +400,7 @@ class AdminWindow(QWidget):
         self.refresh_db_button = QPushButton("Refresh List")
         self.refresh_db_button.setCursor(cursor_pointer)
         self.refresh_db_button.clicked.connect(self.populate_database_list)
-        self.refresh_db_button.setStyleSheet("""
+        self.refresh_db_button.setStyleSheet("""        
             QPushButton {
                 background-color: #5f6368; color: white;
                 border: none; border-radius: 4px; padding: 6px 10px; max-width: 120px;
@@ -415,6 +427,82 @@ class AdminWindow(QWidget):
 
         database_layout.addWidget(self.db_scroll_area) # Add scroll area to the database page layout
 
+        # --- Records page (New) ---
+        records_page = QWidget()
+        records_layout = QVBoxLayout(records_page)
+        records_layout.setContentsMargins(25, 25, 25, 25)
+        records_layout.setSpacing(15)
+
+        records_top_layout = QHBoxLayout()
+        records_label = QLabel("Detection Records")
+        records_label.setStyleSheet("font-size: 16px; font-weight: bold;")
+        self.refresh_records_button = QPushButton("Refresh Records")
+        self.refresh_records_button.setCursor(cursor_pointer)
+        self.refresh_records_button.clicked.connect(self.populate_records_table) # Connect refresh
+        self.refresh_records_button.setStyleSheet("""
+            QPushButton {
+                background-color: #5f6368; color: white;
+                border: none; border-radius: 4px; padding: 6px 10px; max-width: 150px;
+            }
+            QPushButton:hover { background-color: #707478; }
+        """)
+        records_top_layout.addWidget(records_label)
+        records_top_layout.addStretch()
+        records_top_layout.addWidget(self.refresh_records_button)
+        records_layout.addLayout(records_top_layout)
+
+        # Records Table
+        self.records_table = QTableWidget()
+        self.records_table.setColumnCount(4) # Name, Date, Time, Accuracy
+        self.records_table.setHorizontalHeaderLabels(["Name", "Date", "Time", "Accuracy"])
+        self.records_table.verticalHeader().setVisible(False) # Hide row numbers
+        self.records_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers) # Read-only
+        self.records_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows) # Select whole rows
+        self.records_table.setAlternatingRowColors(True) # Zebra striping
+
+        # Style the table and header
+        self.records_table.setStyleSheet("""
+            QTableWidget {
+                background-color: #2a2b2e;
+                border: 1px solid #3a3b3e;
+                border-radius: 6px;
+                gridline-color: #3a3b3e; /* Color of the grid lines */
+                color: white; /* Text color */
+            }
+            QTableWidget::item {
+                padding: 5px; /* Padding within cells */
+            }
+            QTableWidget::item:selected {
+                background-color: #5f6368; /* Background color of selected row */
+                color: white;
+            }
+             QHeaderView::section {
+                background-color: #3a3b3e; /* Header background */
+                color: white; /* Header text color */
+                padding: 5px;
+                border: none; /* No borders between header sections */
+                border-bottom: 1px solid #5f6368; /* Bottom border for header */
+                font-weight: bold;
+            }
+            QTableCornerButton::section { /* Style the top-left corner */
+                 background-color: #3a3b3e;
+                 border: none;
+                 border-bottom: 1px solid #5f6368;
+            }
+            /* Style alternating rows */
+             QTableView::item:alternate {
+                 background-color: #313235; /* Slightly different background for alternate rows */
+             }
+        """)
+        # Make columns resize nicely
+        header = self.records_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch) # Name
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents) # Date
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents) # Time
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents) # Accuracy
+
+        records_layout.addWidget(self.records_table)
+
         # --- Settings page ---
         settings_page = QWidget()
         settings_layout = QVBoxLayout(settings_page)
@@ -426,6 +514,7 @@ class AdminWindow(QWidget):
         self.contentStack.addWidget(dashboard_page)
         self.contentStack.addWidget(train_page)
         self.contentStack.addWidget(database_page) # Add new database page
+        self.contentStack.addWidget(records_page) # Add new records page
         self.contentStack.addWidget(settings_page)
 
         admin_layout.addWidget(sidebar)
@@ -434,10 +523,13 @@ class AdminWindow(QWidget):
         self.dashboard_button.clicked.connect(lambda: self._update_button_states(0, self.dashboard_button))
         self.train_button.clicked.connect(lambda: self._update_button_states(1, self.train_button))
         self.database_button.clicked.connect(lambda: self._update_button_states(2, self.database_button)) # Connect new button
-        self.settings_button.clicked.connect(lambda: self._update_button_states(3, self.settings_button)) # Adjust index
+        self.records_button.clicked.connect(lambda: self._update_button_states(3, self.records_button)) # Connect new records button
+        self.settings_button.clicked.connect(lambda: self._update_button_states(4, self.settings_button)) # Adjust index
 
         # Initial population of database list when window is created
         self.populate_database_list()
+        # Initial population of records table
+        self.populate_records_table()
 
         # Styling
         self.setStyleSheet(
@@ -491,6 +583,7 @@ class AdminWindow(QWidget):
         self._update_icon_color(self.dashboard_button)
         self._update_icon_color(self.train_button)
         self._update_icon_color(self.database_button) # Update icon for new button
+        self._update_icon_color(self.records_button) # Update icon for records button
         self._update_icon_color(self.settings_button)
 
     def add_person_entry_widget(self):
@@ -819,6 +912,7 @@ class AdminWindow(QWidget):
         self.dashboard_button.setChecked(False)
         self.train_button.setChecked(False)
         self.database_button.setChecked(False) # Add database button
+        self.records_button.setChecked(False) # Add records button
         self.settings_button.setChecked(False)
 
         # Check the clicked button
@@ -831,7 +925,12 @@ class AdminWindow(QWidget):
         self._update_icon_color(self.dashboard_button)
         self._update_icon_color(self.train_button)
         self._update_icon_color(self.database_button) # Add database button
+        self._update_icon_color(self.records_button) # Add records button
         self._update_icon_color(self.settings_button)
+
+        # Populate records if switching to the records page
+        if index == 3: # Index of the records page
+            self.populate_records_table()
 
     def _update_icon_color(self, button):
         icon_base_name = ""
@@ -843,6 +942,8 @@ class AdminWindow(QWidget):
             icon_base_name = 'camera' # Consider renaming icon file if 'train' is better
         elif button == self.database_button: # Add database button case
             icon_base_name = 'database' # This line handles the database icon
+        elif button == self.records_button: # Add records button case
+            icon_base_name = 'records'
         elif button == self.settings_button:
             icon_base_name = 'settings'
 
@@ -1021,6 +1122,77 @@ class AdminWindow(QWidget):
 
         else:
             print(f"Deletion cancelled for {person_name}.")
+
+    def populate_records_table(self):
+        """Fetches detection records and populates the records table."""
+        print("Populating detection records table...")
+        self.records_table.setRowCount(0) # Clear existing rows
+
+        try:
+            # Check if pipeline exists and has the method
+            if hasattr(self.camera_widget, 'pipeline') and \
+               self.camera_widget.pipeline and \
+               hasattr(self.camera_widget.pipeline, 'get_detection_log'):
+
+                detection_log = self.camera_widget.pipeline.get_detection_log()
+
+                if not detection_log:
+                    # Optional: Display a message in the table if no records
+                    self.records_table.setRowCount(1)
+                    no_records_item = QTableWidgetItem("No detection records available yet.")
+                    no_records_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    self.records_table.setItem(0, 0, no_records_item)
+                    # Span the message across all columns
+                    self.records_table.setSpan(0, 0, 1, self.records_table.columnCount())
+                    print("No detection records found in the pipeline.")
+                    return
+
+                self.records_table.setRowCount(len(detection_log))
+                for row, record in enumerate(reversed(detection_log)): # Show newest first
+                    name, timestamp, similarity = record
+
+                    # Format timestamp
+                    dt_object = datetime.fromtimestamp(timestamp)
+                    date_str = dt_object.strftime("%Y-%m-%d")
+                    time_str = dt_object.strftime("%H:%M:%S")
+                    accuracy_str = f"{similarity:.2f}" # Format similarity
+
+                    # Create table items
+                    name_item = QTableWidgetItem(name)
+                    date_item = QTableWidgetItem(date_str)
+                    time_item = QTableWidgetItem(time_str)
+                    accuracy_item = QTableWidgetItem(accuracy_str)
+
+                    # Center align time and accuracy
+                    time_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    accuracy_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+                    # Add items to the table row
+                    self.records_table.setItem(row, 0, name_item)
+                    self.records_table.setItem(row, 1, date_item)
+                    self.records_table.setItem(row, 2, time_item)
+                    self.records_table.setItem(row, 3, accuracy_item)
+
+                print(f"Populated table with {len(detection_log)} records.")
+
+            else:
+                print("Warning: Camera pipeline or get_detection_log method not available.")
+                # Optional: Display an error message in the table
+                self.records_table.setRowCount(1)
+                error_item = QTableWidgetItem("Could not retrieve records (Pipeline not ready).")
+                error_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.records_table.setItem(0, 0, error_item)
+                self.records_table.setSpan(0, 0, 1, self.records_table.columnCount())
+
+
+        except Exception as e:
+            print(f"Error populating records table: {e}")
+            # Optional: Display an error message in the table
+            self.records_table.setRowCount(1)
+            error_item = QTableWidgetItem(f"Error loading records: {e}")
+            error_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.records_table.setItem(0, 0, error_item)
+            self.records_table.setSpan(0, 0, 1, self.records_table.columnCount())
 
 
 def login():

@@ -5,6 +5,7 @@ import threading
 import queue
 import os
 import time
+from collections import deque # Use deque for efficient fixed-size log
 from torch.nn.functional import cosine_similarity
 from src.backend.utils.face_utils import detect_faces, align_face, load_face_recognition_model, transform
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QStackedLayout
@@ -18,6 +19,7 @@ class FaceRecognitionPipeline:
         self.saved_embeddings = []
         self.saved_labels = []
         self.lock = threading.Lock() # Ensure lock is initialized before loading
+        self.detection_log = deque(maxlen=100) # Store last 100 detections (name, timestamp, similarity)
 
         # Initial loading of embeddings
         self._load_all_embeddings()
@@ -172,6 +174,10 @@ class FaceRecognitionPipeline:
                              # Check index bounds just in case
                              if best_idx < len(self.saved_labels):
                                  person_label = self.saved_labels[best_idx]
+                                 # --- Log the detection event ---
+                                 timestamp = time.time()
+                                 self.detection_log.append((person_label, timestamp, best_score))
+                                 # -----------------------------
                              else:
                                  print(f"Warning: best_idx {best_idx} out of bounds for saved_labels (len {len(self.saved_labels)})")
 
@@ -274,6 +280,11 @@ class FaceRecognitionPipeline:
         # Optionally join threads here if needed, though daemon=True helps
         cv2.destroyAllWindows()
         print("Cleanup complete.")
+
+    def get_detection_log(self):
+        """Returns a copy of the current detection log."""
+        with self.lock: # Ensure thread-safe access
+            return list(self.detection_log) # Return a copy as a list
 
 
 class CameraWidget(QWidget):
