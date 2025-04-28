@@ -16,7 +16,7 @@ Ongoing...
     ```bash
     uv sync
     ```
-4. **Add the models in `src/backend/checkpoints` directory:**
+4. **Add the models in `src/backend/checkpoints` directory:**<br>
     [**Download Models Here**](https://drive.google.com/drive/folders/1kYFrHNeyw3TNP0XMigu7uaTgLHG1BuhQ?usp=sharing)
 5. **Run the program:**
     ```bash
