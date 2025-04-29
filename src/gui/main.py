@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem,
     QHeaderView,
     QFormLayout,
+    QCheckBox
 )
 from PyQt6.QtCore import Qt, QTimer, QSize
 from PyQt6.QtGui import QCursor, QIcon, QPixmap, QIntValidator 
@@ -501,6 +502,29 @@ class AdminWindow(QWidget):
         settings_form_layout.setSpacing(12)
         settings_form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         settings_form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+
+        # Add FPS Display toggle
+        fps_display_label = QLabel("Show FPS Counter:")
+        fps_display_label.setStyleSheet("background: none; font-weight: 600;")
+        self.fps_toggle_checkbox = QCheckBox()
+        self.fps_toggle_checkbox.setChecked(False)  # Default to not showing FPS
+        self.fps_toggle_checkbox.setStyleSheet("""
+            QCheckBox {
+                background: none;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                background-color: #3a3b3e;
+                border: 1px solid #5f6368;
+                border-radius: 3px;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #8ab4f8;
+                image: url(src/gui/icons/check_black.svg);
+            }
+        """)
+        settings_form_layout.addRow(fps_display_label, self.fps_toggle_checkbox)
 
         # Log Interval Setting
         log_interval_label = QLabel("Log Interval (seconds):")
@@ -1158,6 +1182,13 @@ class AdminWindow(QWidget):
         print("Applying settings...")
         settings_applied = []
         try:
+            # Apply FPS Display Setting
+            show_fps = self.fps_toggle_checkbox.isChecked()
+            if hasattr(self.camera_widget, 'pipeline') and self.camera_widget.pipeline:
+                self.camera_widget.pipeline.show_fps = show_fps
+                settings_applied.append("FPS Display")
+                print(f"FPS display set to: {show_fps}")
+
             # Apply Log Interval
             log_interval_str = self.log_interval_input.text()
             log_interval_state, log_interval_val, _ = self.log_interval_input.validator().validate(log_interval_str, 0)

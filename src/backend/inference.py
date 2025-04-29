@@ -22,10 +22,11 @@ class FaceRecognitionPipeline:
         self.face_database_dir = './src/backend/face_database/' # Store path
         self.saved_embeddings = []
         self.saved_labels = []
-        self.lock = threading.Lock() # Ensure lock is initialized before loading
-        self.detection_log = deque(maxlen=100) # Store last 100 detections (name, timestamp, similarity)
-        self.last_log_time_per_person = {} # Tracks last log time for each person
-        self.log_interval = 15 # Default log interval in seconds (now an instance variable)
+        self.lock = threading.Lock()
+        self.detection_log = deque(maxlen=100)
+        self.last_log_time_per_person = {}
+        self.log_interval = 15
+        self.show_fps = False  # Changed to False by default
 
         # Ensure log directory exists
         os.makedirs(LOG_DIR, exist_ok=True)
@@ -275,7 +276,7 @@ class FaceRecognitionPipeline:
 
     def process_frame(self, frame, recognition_threshold=0.6):
         """Detect, align, and recognize faces in a video frame."""        
-        self.recognition_threshold = recognition_threshold  # Store the threshold
+        self.recognition_threshold = recognition_threshold
         if not isinstance(frame, np.ndarray) or frame.size == 0:
             return frame
             
@@ -290,9 +291,10 @@ class FaceRecognitionPipeline:
         boxes, _ = detect_faces(frame)
         
         if len(boxes) == 0:
-            # Still display FPS even when no faces are detected
-            cv2.putText(frame, f'FPS: {self.fps:.1f}', (10, 30), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            # Only show FPS if enabled
+            if self.show_fps:
+                cv2.putText(frame, f'FPS: {self.fps:.1f}', (10, 30), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             return frame
             
         for box in boxes:
@@ -329,9 +331,10 @@ class FaceRecognitionPipeline:
             cv2.putText(frame, f"{result['name']}, score: {result['similarity']:.2f}",
                         (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
         
-        # Display FPS
-        cv2.putText(frame, f'FPS: {self.fps:.1f}', (10, 30), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        # Display FPS only if enabled (at the end of the method)
+        if self.show_fps:
+            cv2.putText(frame, f'FPS: {self.fps:.1f}', (10, 30), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         
         if self.frame_count % 30 == 0:
             with self.lock:
