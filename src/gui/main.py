@@ -27,6 +27,7 @@ from PyQt6.QtGui import QCursor, QIcon, QPixmap, QIntValidator
 from src.backend.inference import CameraWidget
 from src.backend.prepare_embeddings import generate_and_save_embeddings
 from src.backend.utils.face_utils import load_face_recognition_model
+from src.gui.styles import LOGIN_STYLES, ADMIN_STYLES, TABLE_STYLES
 
 # --- Application Setup ---
 app = QApplication(sys.argv)
@@ -59,7 +60,7 @@ class PersonEntryWidget(QWidget):
         self.upload_image_button.setCursor(cursor_pointer)
         self.upload_image_button.clicked.connect(lambda: self.parent_admin_window.select_images(self))
         # Add styling for the image button
-        self.upload_image_button.setStyleSheet("""
+        self.upload_image_button.setStyleSheet("""        
             QPushButton {
                 background-color: #5f6368; color: white;
                 border: none; border-radius: 4px; padding: 6px 10px;
@@ -461,40 +462,11 @@ class AdminWindow(QWidget):
         self.records_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.records_table.setAlternatingRowColors(True)
 
-        # Style the table and header
-        self.records_table.setStyleSheet("""
-            QTableWidget {
-                background-color: #2a2b2e;
-                border: 1px solid #3a3b3e;
-                border-radius: 6px;
-                gridline-color: #3a3b3e; /* Color of the grid lines */
-                color: white; /* Text color */
-            }
-            QTableWidget::item {
-                padding: 5px; /* Padding within cells */
-            }
-            QTableWidget::item:selected {
-                background-color: #5f6368; /* Background color of selected row */
-                color: white;
-            }
-             QHeaderView::section {
-                background-color: #3a3b3e; /* Header background */
-                color: white; /* Header text color */
-                padding: 5px;
-                border: none; /* No borders between header sections */
-                border-bottom: 1px solid #5f6368; /* Bottom border for header */
-                font-weight: bold;
-            }
-            QTableCornerButton::section { /* Style the top-left corner */
-                 background-color: #3a3b3e;
-                 border: none;
-                 border-bottom: 1px solid #5f6368;
-            }
-            /* Style alternating rows */
-             QTableView::item:alternate {
-                 background-color: #313235; /* Slightly different background for alternate rows */
-             }
-        """)
+        # Apply table styles
+        self.records_table.setStyleSheet(TABLE_STYLES)
+
+        # Styling for the admin window
+        self.setStyleSheet(ADMIN_STYLES)
 
         header = self.records_table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
@@ -607,75 +579,8 @@ class AdminWindow(QWidget):
         # Initial population of records table
         self.populate_records_table()
 
-        # Styling
-        self.setStyleSheet(
-            """
-            #sidebar {
-                background-color: #2a2b2e;
-            }
-            *[class=sidebar-buttons] {
-                font-size: 16px;
-                padding: 10px;
-                border-radius: 6px;
-                background-color: None;
-                text-align: left;
-                color: white; /* Ensure default text is white */
-                border: none; /* Ensure no border by default */
-            }
-            *[class=sidebar-buttons]:checked {
-                background-color: white;
-                color: black;
-            }
-            *[class=sidebar-buttons]:hover:!checked { /* Style hover only when not checked */
-                background-color: #3a3b3e;
-            }
-            /* Specific hover for logout button (always not checked) */
-            QPushButton#logout_button:hover { /* Assuming you set objectName="logout_button" if needed, or rely on class */
-                 background-color: #3a3b3e;
-            }
-
-            *[class=start-button] {
-                background-color: #4CAF50;
-                color: white;
-                font-weight: bold;
-                border: none;
-                border-radius: 4px;
-                padding: 8px;
-            }
-            *[class=start-button]:hover {
-                background-color: #45a049;
-            }
-            *[class=stop-button] {
-                background-color: #f44336;
-                color: white;
-                font-weight: bold;
-                border: none;
-                border-radius: 4px;
-                padding: 8px;
-            }
-            *[class=stop-button]:hover {
-                background-color: #da190b;
-            }
-            #camera-label {
-                font-size: 14px;
-                font-weight: 600;
-            }
-            /* Style for the settings container card */
-            #settingsCard {
-                background-color: #2a2b2e; /* Match sidebar/card background */
-                border-radius: 6px;
-                /* Optional: Add a subtle border if desired */
-                /* border: 1px solid #3a3b3e; */
-            }
-            /* General styling for labels within the form layout if needed */
-            QFormLayout QLabel {
-                 font-size: 13px; /* Adjust as needed */
-                 /* font-weight: 600; Already applied inline */
-                 background: none; /* Ensure no background */
-                 /* padding-right: 10px; Remove or adjust padding if left-aligned */
-            }
-            """
-        )
+        # Main window styling
+        app.setStyleSheet(LOGIN_STYLES)
 
         # Update icons for checkable buttons initially
         self._update_icon_color(self.dashboard_button)
@@ -1172,7 +1077,7 @@ class AdminWindow(QWidget):
             if deleted_npz and deleted_folder and pipeline_updated:
                  QMessageBox.information(self, "Deletion Successful", f"Successfully removed {person_name} from the database and live recognition.")
             elif deleted_npz:
-                 QMessageBox.information(self, "Deletion Partially Successful", f"Removed {person_name}'s .npz file. Check console for details on folder/pipeline updates.")
+                 QMessageBox.information(self, "Deletion Partially Successful", f"Removed {person_name}'s .npz file. Check console for details on folder/pipeline updates.")  
 
 
         else:
@@ -1388,48 +1293,8 @@ login_form_layout.addWidget(login_button)
 
 main_layout.addWidget(login_form)
 
-# Styling
-app.setStyleSheet(
-    """
-    QWidget {
-        background-color: #202124;
-        font-family: "Consolas", "Courier New", monospace;
-        color: white;
-    }
-    #title {
-        font-size: 25px;
-        font-weight: 700;
-        color: white;
-        margin-bottom: 20px;
-    }
-    *[class=user-pass] {
-        color: white;
-        font-size: 15px;
-        padding: 10px 8px;
-        border: 1px solid #5f6368;
-        border-radius: 6px;
-    }
-    *[class=user-pass]:focus {
-        border: 1px solid #8ab4f8;
-    }
-    #login-button {
-        color: black;
-        font-size: 15px;
-        font-weight: 600;
-        padding: 10px;
-        background-color: white;
-        border-radius: 6px;
-    }
-    #login-button:hover {
-        background-color: #dedede;
-    }
-    #error-label {
-        color: #f28b82;
-        font-size: 13px;
-        font-weight: bold;
-    }
-    """
-)
+# Main window styling
+app.setStyleSheet(LOGIN_STYLES)
 
 # --- Show Window and Run Application ---
 admin_window = None
