@@ -1,1 +1,1 @@
-from src.gui import prac
+from src.gui import main
