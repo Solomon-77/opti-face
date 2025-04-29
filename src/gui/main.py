@@ -1432,7 +1432,6 @@ app.setStyleSheet(
 )
 
 # --- Show Window and Run Application ---
-# Define admin_window globally so it can be accessed in login/logout
 admin_window = None
 window.show()
 sys.exit(app.exec())
