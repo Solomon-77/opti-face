@@ -1,10 +1,8 @@
 import sys
 import os
 import shutil
-import numpy as np
-import torch
-import cv2 # Added for video processing
-import datetime # Added for timestamp formatting
+import cv2
+import datetime
 from PyQt6.QtWidgets import (
     QApplication,
     QWidget,
@@ -17,17 +15,16 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
     QFileDialog,
     QMessageBox,
-    QScrollArea, # Added
-    QFrame,      # Re-added for settings container
-    QTableWidget, # Added for records
-    QTableWidgetItem, # Added for records table items
-    QHeaderView, # Added for table header styling
-    QFormLayout, # Added for settings page
+    QScrollArea,
+    QFrame,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QFormLayout,
 )
 from PyQt6.QtCore import Qt, QTimer, QSize
-from PyQt6.QtGui import QCursor, QIcon, QPixmap, QIntValidator # Added QIntValidator
+from PyQt6.QtGui import QCursor, QIcon, QPixmap, QIntValidator 
 from src.backend.inference import CameraWidget
-# Import the necessary function and utility from backend
 from src.backend.prepare_embeddings import generate_and_save_embeddings
 from src.backend.utils.face_utils import load_face_recognition_model
 
@@ -51,13 +48,13 @@ class PersonEntryWidget(QWidget):
         self.selected_video_path = None
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 10, 10, 10)  # Changed left margin to 0
-        layout.setSpacing(10) # Keep existing spacing between main elements
+        layout.setContentsMargins(0, 10, 10, 10)
+        layout.setSpacing(10)
         self.setStyleSheet("background-color: #2a2b2e; border-radius: 6px;")
 
         # File selection row
         file_selection_layout = QHBoxLayout()
-        file_selection_layout.setContentsMargins(0, 0, 0, 0)  # Added this line
+        file_selection_layout.setContentsMargins(0, 0, 0, 0)
         self.upload_image_button = QPushButton("Select Image")
         self.upload_image_button.setCursor(cursor_pointer)
         self.upload_image_button.clicked.connect(lambda: self.parent_admin_window.select_images(self))
@@ -73,7 +70,6 @@ class PersonEntryWidget(QWidget):
         self.upload_video_button = QPushButton("Select Video")
         self.upload_video_button.setCursor(cursor_pointer)
         self.upload_video_button.clicked.connect(lambda: self.parent_admin_window.select_video(self))
-        # Add styling for the video button
         self.upload_video_button.setStyleSheet("""
             QPushButton {
                 background-color: #5f6368; color: white;
@@ -83,11 +79,9 @@ class PersonEntryWidget(QWidget):
         """)
 
         self.selected_files_label = QLabel("No files selected.")
-        # Remove padding and explicitly set background to none
         self.selected_files_label.setStyleSheet("font-size: 11px; color: #aaa; background: none;")
 
-        # Add remove button to file selection row
-        self.remove_button = QPushButton("Remove")  # Using × symbol for delete
+        self.remove_button = QPushButton("Remove")
         self.remove_button.setCursor(cursor_pointer)
         self.remove_button.setStyleSheet("""
             QPushButton {
@@ -108,18 +102,14 @@ class PersonEntryWidget(QWidget):
         file_selection_layout.addStretch()
         file_selection_layout.addWidget(self.remove_button)
         layout.addLayout(file_selection_layout)
-
-        # Add spacing after file selection row
-        layout.addSpacing(10) # Adjust the value (10) as needed
+        layout.addSpacing(10)
 
         # Name input row
         name_input_layout = QHBoxLayout()
         name_label = QLabel("Person's Name:")
-        # Make label bold and remove background
         name_label.setStyleSheet("background: none; font-weight: bold;")
         self.person_name_input = QLineEdit()
         self.person_name_input.setPlaceholderText("Enter name")
-        # Add styling similar to previous input fields if needed
         self.person_name_input.setStyleSheet("""
             QLineEdit {
                 padding: 5px; border: 1px solid #5f6368; border-radius: 4px;
@@ -130,9 +120,7 @@ class PersonEntryWidget(QWidget):
         name_input_layout.addWidget(name_label)
         name_input_layout.addWidget(self.person_name_input)
         layout.addLayout(name_input_layout)
-
-        # Add spacing after name input row
-        layout.addSpacing(10) # Adjust the value (10) as needed
+        layout.addSpacing(10)
 
         # Status label
         self.train_status_label = QLabel("")
@@ -146,25 +134,20 @@ class AdminWindow(QWidget):
         super().__init__()
         self.setWindowTitle("Admin Screen")
         self.resize(900, 600)
-        self.is_feed_running = False # Track feed state
-        self.face_database_dir = './src/backend/face_database/' # Define database path
-        self.person_entry_widgets = [] # List to hold PersonEntryWidget instances
-        self.training_frame_interval = 5 # Default value, will be configurable
-        self.icon_folder = "src/gui/icons" # Define icon folder path
+        self.is_feed_running = False
+        self.face_database_dir = './src/backend/face_database/'
+        self.person_entry_widgets = []
+        self.training_frame_interval = 5
+        self.icon_folder = "src/gui/icons"
 
-        # Load the face recognition model once for training tasks
-        # Handle potential errors during model loading
         try:
-            # Use the same model path as inference for consistency
             model_path = "src/backend/checkpoints/edgeface_s_gamma_05.pt"
             self.training_model, self.training_device = load_face_recognition_model(model_path=model_path)
             print("Training model loaded successfully.")
         except Exception as e:
             print(f"Error loading training model: {e}")
             QMessageBox.critical(self, "Model Load Error", f"Failed to load the face recognition model for training: {e}")
-            # Optionally disable training features if model fails to load
             self.training_model, self.training_device = None, None
-
 
         # Admin window layout
         admin_layout = QHBoxLayout(self)
@@ -228,8 +211,8 @@ class AdminWindow(QWidget):
         self.logout_button = QPushButton("Logout")
         self.logout_button.setIconSize(QSize(18, 18))
         self.logout_button.setCursor(cursor_pointer)
-        self.logout_button.setProperty("class", "sidebar-buttons") # Use same class for styling
-        # Set the initial (white) icon directly
+        self.logout_button.setProperty("class", "sidebar-buttons")
+
         try:
             logout_icon_path = f"{self.icon_folder}/logout_white.svg"
             logout_icon = QIcon(QPixmap(logout_icon_path))
@@ -242,7 +225,6 @@ class AdminWindow(QWidget):
 
         self.logout_button.clicked.connect(self.logout_action) # Connect to logout method
         sidebar_layout.addWidget(self.logout_button)
-
 
         # Stacked widget
         self.contentStack = QStackedWidget()
@@ -284,36 +266,32 @@ class AdminWindow(QWidget):
         """)
 
         camera_top_layout.addWidget(camera_label)
-        camera_top_layout.addStretch() # Push button to the right
+        camera_top_layout.addStretch()
         camera_top_layout.addWidget(self.toggle_feed_button)
 
-        self.camera_widget = CameraWidget() # Store instance for access
-        camera_card_layout.addLayout(camera_top_layout) # Add the top row layout
+        self.camera_widget = CameraWidget()
+        camera_card_layout.addLayout(camera_top_layout)
         camera_card_layout.addWidget(self.camera_widget)
         camera_card.setStyleSheet("background-color: #2a2b2e; border-radius: 6px;")
-        # Allow camera card to expand vertically
         camera_card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
-
         threshold_card = QWidget()
-        # Use QHBoxLayout for the card itself to arrange items horizontally
         threshold_card_layout = QHBoxLayout(threshold_card)
-        threshold_card_layout.setContentsMargins(15, 10, 15, 10) # Adjust margins if needed
-        threshold_card_layout.setSpacing(10) # Add spacing between elements
+        threshold_card_layout.setContentsMargins(15, 10, 15, 10)
+        threshold_card_layout.setSpacing(10)
 
-        threshold_label = QLabel("Minimum Face Recognition Threshold:") # Changed label text slightly
-        threshold_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter) # Align left
+        threshold_label = QLabel("Minimum Face Recognition Threshold:")
+        threshold_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
         self.threshold_input = QLineEdit()
-        self.threshold_input.setPlaceholderText("0.0-1.0") # Shortened placeholder
-        self.threshold_input.setText("0.6")  # Default value
-        self.threshold_input.setFixedWidth(80) # Adjust width as needed
+        self.threshold_input.setPlaceholderText("0.0-1.0")
+        self.threshold_input.setText("0.6")
+        self.threshold_input.setFixedWidth(80)
 
         self.apply_threshold = QPushButton("Apply")
         self.apply_threshold.setCursor(cursor_pointer)
-        self.apply_threshold.setFixedWidth(80) # Adjust width as needed
+        self.apply_threshold.setFixedWidth(80)
         self.apply_threshold.clicked.connect(self.update_threshold)
-        # Add specific styling for the apply button
         self.apply_threshold.setStyleSheet("""
             QPushButton {
                 padding: 5px;
@@ -327,11 +305,10 @@ class AdminWindow(QWidget):
             }
         """)
 
-        # Add widgets directly to the horizontal card layout
         threshold_card_layout.addWidget(threshold_label)
         threshold_card_layout.addWidget(self.threshold_input)
         threshold_card_layout.addWidget(self.apply_threshold)
-        threshold_card_layout.addStretch() # Push elements to the left
+        threshold_card_layout.addStretch()
 
         threshold_card.setStyleSheet("""
             QWidget { /* Apply to the card itself */
@@ -354,15 +331,14 @@ class AdminWindow(QWidget):
             }
             /* Button styling is now handled inline above */
         """)
-        threshold_card.setMaximumHeight(60) # Adjust max height if needed
+        threshold_card.setMaximumHeight(60)
 
         dashboard_layout.addWidget(camera_card)
         dashboard_layout.addWidget(threshold_card)
-        # Removed dashboard_layout.addStretch() to allow camera_card to expand
 
         # --- Train page ---
         train_page = QWidget()
-        train_main_layout = QVBoxLayout(train_page) # Main layout for the page
+        train_main_layout = QVBoxLayout(train_page)
         train_main_layout.setContentsMargins(25, 25, 25, 25)
         train_main_layout.setSpacing(15)
 
@@ -377,12 +353,12 @@ class AdminWindow(QWidget):
             QPushButton:hover { background-color: #9ac0f9; }
         """)
         self.add_person_entry_button.clicked.connect(self.add_person_entry_widget)
-        train_main_layout.addWidget(self.add_person_entry_button, alignment=Qt.AlignmentFlag.AlignLeft) # Add button to main layout
+        train_main_layout.addWidget(self.add_person_entry_button, alignment=Qt.AlignmentFlag.AlignLeft)
 
         # Scroll Area for Person Entries
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setStyleSheet("QScrollArea { border: none; background-color: #202124; }") # Style scroll area
+        self.scroll_area.setStyleSheet("QScrollArea { border: none; background-color: #202124; }")
 
         # Container widget inside Scroll Area
         self.scroll_content_widget = QWidget()
@@ -390,11 +366,11 @@ class AdminWindow(QWidget):
 
         # Layout for the container widget (holds PersonEntryWidgets)
         self.person_entries_layout = QVBoxLayout(self.scroll_content_widget)
-        self.person_entries_layout.setContentsMargins(0, 0, 0, 0) # No margins for the inner layout
-        self.person_entries_layout.setSpacing(10) # Spacing between person entries
-        self.person_entries_layout.setAlignment(Qt.AlignmentFlag.AlignTop) # Align entries to the top
+        self.person_entries_layout.setContentsMargins(0, 0, 0, 0)
+        self.person_entries_layout.setSpacing(10)
+        self.person_entries_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        train_main_layout.addWidget(self.scroll_area) # Add scroll area to main layout
+        train_main_layout.addWidget(self.scroll_area)
 
         # Add the "Train All" button below the scroll area
         self.train_all_button = QPushButton("Train All Added Persons")
@@ -408,7 +384,6 @@ class AdminWindow(QWidget):
         """)
         self.train_all_button.clicked.connect(self.train_all_persons_action)
         self.train_all_button.setMaximumWidth(200)
-        # Add button with center alignment
         train_main_layout.addWidget(self.train_all_button, alignment=Qt.AlignmentFlag.AlignCenter) # Center align
 
         # Add the first entry widget automatically
@@ -441,18 +416,17 @@ class AdminWindow(QWidget):
 
         self.db_scroll_area = QScrollArea()
         self.db_scroll_area.setWidgetResizable(True)
-        # Remove border from the stylesheet below
-        self.db_scroll_area.setStyleSheet("QScrollArea { border: none; background-color: #2a2b2e; border-radius: 6px; }") # Style scroll area
+        self.db_scroll_area.setStyleSheet("QScrollArea { border: none; background-color: #2a2b2e; border-radius: 6px; }")
 
         self.db_scroll_content_widget = QWidget()
         self.db_scroll_area.setWidget(self.db_scroll_content_widget)
 
         self.database_list_layout = QVBoxLayout(self.db_scroll_content_widget)
-        self.database_list_layout.setContentsMargins(10, 10, 10, 10) # Margins inside scroll area
-        self.database_list_layout.setSpacing(8) # Spacing between entries
-        self.database_list_layout.setAlignment(Qt.AlignmentFlag.AlignTop) # Align entries to the top
+        self.database_list_layout.setContentsMargins(10, 10, 10, 10)
+        self.database_list_layout.setSpacing(8)
+        self.database_list_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        database_layout.addWidget(self.db_scroll_area) # Add scroll area to the database page layout
+        database_layout.addWidget(self.db_scroll_area)
 
         # --- Records page (New) ---
         records_page = QWidget()
@@ -480,12 +454,12 @@ class AdminWindow(QWidget):
 
         # Records Table
         self.records_table = QTableWidget()
-        self.records_table.setColumnCount(4) # Name, Date, Time, Accuracy
+        self.records_table.setColumnCount(4)
         self.records_table.setHorizontalHeaderLabels(["Name", "Date", "Time", "Accuracy"])
-        self.records_table.verticalHeader().setVisible(False) # Hide row numbers
-        self.records_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers) # Read-only
-        self.records_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows) # Select whole rows
-        self.records_table.setAlternatingRowColors(True) # Zebra striping
+        self.records_table.verticalHeader().setVisible(False)
+        self.records_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.records_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.records_table.setAlternatingRowColors(True)
 
         # Style the table and header
         self.records_table.setStyleSheet("""
@@ -521,58 +495,52 @@ class AdminWindow(QWidget):
                  background-color: #313235; /* Slightly different background for alternate rows */
              }
         """)
-        # Make columns resize nicely
+
         header = self.records_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch) # Name
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents) # Date
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents) # Time
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents) # Accuracy
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
 
         records_layout.addWidget(self.records_table)
 
         # --- Settings page ---
         settings_page = QWidget()
-        settings_main_layout = QVBoxLayout(settings_page) # Use a QVBoxLayout for overall structure
+        settings_main_layout = QVBoxLayout(settings_page)
         settings_main_layout.setContentsMargins(25, 25, 25, 25)
         settings_main_layout.setSpacing(15)
-        settings_main_layout.setAlignment(Qt.AlignmentFlag.AlignTop) # Align content to top
+        settings_main_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # Settings Container (Card)
-        settings_container = QFrame() # Use QFrame for styling capabilities
-        settings_container.setObjectName("settingsCard") # Assign object name for styling
+        settings_container = QFrame()
+        settings_container.setObjectName("settingsCard")
         settings_container_layout = QVBoxLayout(settings_container)
-        settings_container_layout.setContentsMargins(20, 20, 20, 20) # Padding inside the card
-        settings_container_layout.setSpacing(15) # Spacing inside the card
-
+        settings_container_layout.setContentsMargins(20, 20, 20, 20)
+        settings_container_layout.setSpacing(15)
         settings_label = QLabel("Application Settings")
-        # Apply consistent header styling - REMOVED margin-bottom
         settings_label.setStyleSheet("font-size: 16px; font-weight: bold; background: none;")
         settings_container_layout.addWidget(settings_label)
 
         # Add spacing before the form layout
-        settings_container_layout.addSpacing(10) # Add 10px spacing here
+        settings_container_layout.addSpacing(10)
 
         # Use QFormLayout for label-input pairs
         settings_form_layout = QFormLayout()
-        settings_form_layout.setSpacing(12) # Spacing between rows
-        # Change label alignment to Left
-        settings_form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter) # Align labels left and vertically center
-        # Apply consistent label styling via stylesheet later if needed, or inline:
-        settings_form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow) # Allow fields to expand
+        settings_form_layout.setSpacing(12)
+        settings_form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        settings_form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
         # Log Interval Setting
         log_interval_label = QLabel("Log Interval (seconds):")
-        log_interval_label.setStyleSheet("background: none; font-weight: 600;") # Consistent label style
+        log_interval_label.setStyleSheet("background: none; font-weight: 600;")
         self.log_interval_input = QLineEdit()
-        self.log_interval_input.setPlaceholderText("e.g., 15") # Shortened placeholder
-        # Set initial value from pipeline default if possible, otherwise use a sensible default
-        default_log_interval = 15 # Default if pipeline isn't ready yet
+        self.log_interval_input.setPlaceholderText("e.g., 15")
+        default_log_interval = 15
         if hasattr(self.camera_widget, 'pipeline') and self.camera_widget.pipeline:
              default_log_interval = self.camera_widget.pipeline.get_log_interval()
         self.log_interval_input.setText(str(default_log_interval))
-        self.log_interval_input.setValidator(QIntValidator(0, 100, self)) # Limit 0-100
-        self.log_interval_input.setFixedWidth(80) # Reduced width slightly
-        # Consistent input styling
+        self.log_interval_input.setValidator(QIntValidator(0, 100, self))
+        self.log_interval_input.setFixedWidth(80)
         self.log_interval_input.setStyleSheet("""
             QLineEdit {
                 padding: 6px; border: 1px solid #5f6368; border-radius: 4px;
@@ -584,13 +552,12 @@ class AdminWindow(QWidget):
 
         # Training Frame Interval Setting
         train_interval_label = QLabel("Training Frame Interval:")
-        train_interval_label.setStyleSheet("background: none; font-weight: 600;") # Consistent label style
+        train_interval_label.setStyleSheet("background: none; font-weight: 600;")
         self.train_interval_input = QLineEdit()
-        self.train_interval_input.setPlaceholderText("e.g., 5") # Shortened placeholder
-        self.train_interval_input.setText(str(self.training_frame_interval)) # Use instance variable default
-        self.train_interval_input.setValidator(QIntValidator(1, 100, self)) # Limit 1-100
-        self.train_interval_input.setFixedWidth(80) # Reduced width slightly
-        # Consistent input styling
+        self.train_interval_input.setPlaceholderText("e.g., 5")
+        self.train_interval_input.setText(str(self.training_frame_interval))
+        self.train_interval_input.setValidator(QIntValidator(1, 100, self))
+        self.train_interval_input.setFixedWidth(80)
         self.train_interval_input.setStyleSheet("""
              QLineEdit {
                 padding: 6px; border: 1px solid #5f6368; border-radius: 4px;
@@ -600,13 +567,12 @@ class AdminWindow(QWidget):
         """)
         settings_form_layout.addRow(train_interval_label, self.train_interval_input)
 
-        settings_container_layout.addLayout(settings_form_layout) # Add form layout to container layout
+        settings_container_layout.addLayout(settings_form_layout)
 
         # Apply Settings Button
         self.apply_settings_button = QPushButton("Apply Settings")
         self.apply_settings_button.setCursor(cursor_pointer)
         self.apply_settings_button.clicked.connect(self.apply_settings)
-        # Consistent primary button styling
         self.apply_settings_button.setStyleSheet("""
             QPushButton {
                 background-color: #4CAF50; color: white; font-weight: bold;
@@ -615,16 +581,16 @@ class AdminWindow(QWidget):
             }
             QPushButton:hover { background-color: #45a049; }
         """)
-        settings_container_layout.addWidget(self.apply_settings_button, alignment=Qt.AlignmentFlag.AlignLeft) # Align button left within the card
+        settings_container_layout.addWidget(self.apply_settings_button, alignment=Qt.AlignmentFlag.AlignLeft)
 
-        settings_main_layout.addWidget(settings_container) # Add the container card to the main page layout
-        settings_main_layout.addStretch() # Add stretch to push the card to the top
+        settings_main_layout.addWidget(settings_container)
+        settings_main_layout.addStretch()
 
         # Add pages to stack
         self.contentStack.addWidget(dashboard_page)
         self.contentStack.addWidget(train_page)
-        self.contentStack.addWidget(database_page) # Add new database page
-        self.contentStack.addWidget(records_page) # Add new records page
+        self.contentStack.addWidget(database_page)
+        self.contentStack.addWidget(records_page)
         self.contentStack.addWidget(settings_page)
 
         admin_layout.addWidget(sidebar)
@@ -632,9 +598,9 @@ class AdminWindow(QWidget):
 
         self.dashboard_button.clicked.connect(lambda: self._update_button_states(0, self.dashboard_button))
         self.train_button.clicked.connect(lambda: self._update_button_states(1, self.train_button))
-        self.database_button.clicked.connect(lambda: self._update_button_states(2, self.database_button)) # Connect new button
-        self.records_button.clicked.connect(lambda: self._update_button_states(3, self.records_button)) # Connect new records button
-        self.settings_button.clicked.connect(lambda: self._update_button_states(4, self.settings_button)) # Adjust index
+        self.database_button.clicked.connect(lambda: self._update_button_states(2, self.database_button))
+        self.records_button.clicked.connect(lambda: self._update_button_states(3, self.records_button))
+        self.settings_button.clicked.connect(lambda: self._update_button_states(4, self.settings_button))
 
         # Initial population of database list when window is created
         self.populate_database_list()
@@ -714,37 +680,30 @@ class AdminWindow(QWidget):
         # Update icons for checkable buttons initially
         self._update_icon_color(self.dashboard_button)
         self._update_icon_color(self.train_button)
-        self._update_icon_color(self.database_button) # Update icon for new button
-        self._update_icon_color(self.records_button) # Update icon for records button
+        self._update_icon_color(self.database_button)
+        self._update_icon_color(self.records_button)
         self._update_icon_color(self.settings_button)
-        # Logout button icon is set statically above
 
     def add_person_entry_widget(self):
         """Creates and adds a new PersonEntryWidget to the scroll area."""
         entry_widget = PersonEntryWidget(self)
         self.person_entries_layout.addWidget(entry_widget)
         self.person_entry_widgets.append(entry_widget)
-        # Optional: Add a separator line if more than one widget exists
-        # Insert separator before the last added widget
-        if self.person_entries_layout.count() > 1: # Check if more than one widget exists *before* adding separator
-             # Find the widget added just before this one
+        
+        if self.person_entries_layout.count() > 1:
              previous_widget_index = self.person_entries_layout.count() - 2
-             # Check if the item at that index is indeed a PersonEntryWidget (not already a separator)
              item = self.person_entries_layout.itemAt(previous_widget_index)
              if item and isinstance(item.widget(), PersonEntryWidget):
                  separator = QFrame()
                  separator.setFrameShape(QFrame.Shape.HLine)
                  separator.setFrameShadow(QFrame.Shadow.Sunken)
-                 separator.setStyleSheet("border: 1px solid #3a3b3e;") # Basic styling
-                 # Insert separator *before* the newly added widget
+                 separator.setStyleSheet("border: 1px solid #3a3b3e;")
                  self.person_entries_layout.insertWidget(self.person_entries_layout.count() - 1, separator)
-
 
     def remove_person_entry_widget(self, target_widget: PersonEntryWidget):
         """Removes a specific PersonEntryWidget and its preceding separator."""
         if target_widget in self.person_entry_widgets:
             try:
-                # Find the index of the target widget in the layout
                 index = self.person_entries_layout.indexOf(target_widget)
 
                 # Remove the widget itself
@@ -761,10 +720,8 @@ class AdminWindow(QWidget):
                         self.person_entries_layout.removeWidget(separator_widget)
                         separator_widget.deleteLater()
                         print("Removed preceding separator.")
-                # Check if there's a separator *after* this widget (if it was the last actual entry)
-                # This handles removing the separator when the *last* entry is removed
-                elif index == 0 and self.person_entries_layout.count() > 0: # If it was the first item and there's still something left
-                     item_after = self.person_entries_layout.itemAt(0) # Check the new first item
+                elif index == 0 and self.person_entries_layout.count() > 0:
+                     item_after = self.person_entries_layout.itemAt(0)
                      if item_after and isinstance(item_after.widget(), QFrame):
                          separator_widget = item_after.widget()
                          self.person_entries_layout.removeWidget(separator_widget)
@@ -774,43 +731,38 @@ class AdminWindow(QWidget):
 
             except Exception as e:
                 print(f"Error removing widget: {e}")
-                # Optionally show a message box
                 QMessageBox.warning(self, "Error", f"Could not remove the entry: {e}")
 
     def select_images(self, target_widget: PersonEntryWidget):
         """Opens a file dialog to select multiple image files for a specific person entry."""
-        # Define supported image file extensions
         image_extensions = "*.png *.jpg *.jpeg *.bmp *.tiff"
         files, _ = QFileDialog.getOpenFileNames(
             self,
             "Select Images for Training",
-            "", # Start directory (optional)
+            "",
             f"Image Files ({image_extensions});;All Files (*)"
         )
         if files:
             target_widget.selected_image_paths = files
-            target_widget.selected_video_path = None # Clear video selection
+            target_widget.selected_video_path = None
             target_widget.selected_files_label.setText(f"{len(files)} image(s) selected.")
             print(f"Selected images for widget: {files}")
         else:
-            # Decide if clearing is desired on cancellation
-            # target_widget.selected_image_paths = []
-            # target_widget.selected_files_label.setText("No files selected.")
             print("No images selected for widget.")
 
     def select_video(self, target_widget: PersonEntryWidget):
         """Opens a file dialog to select a single video file for a specific person entry."""
-        # Define supported video file extensions
+
         video_extensions = "*.mp4 *.avi *.mov *.mkv"
         file, _ = QFileDialog.getOpenFileName(
             self,
             "Select Video for Training",
-            "", # Start directory (optional)
+            "",
             f"Video Files ({video_extensions});;All Files (*)"
         )
         if file:
             target_widget.selected_video_path = file
-            target_widget.selected_image_paths = [] # Clear image selection
+            target_widget.selected_image_paths = []
             target_widget.selected_files_label.setText(f"Video: {os.path.basename(file)}")
             print(f"Selected video for widget: {file}")
         else:
@@ -821,7 +773,6 @@ class AdminWindow(QWidget):
         print("Starting training for all added persons...")
         if self.training_model is None or self.training_device is None:
              QMessageBox.critical(self, "Error", "Training model not loaded. Cannot train.")
-             # Optionally set status on all widgets?
              return
 
         processed_count = 0
@@ -835,35 +786,21 @@ class AdminWindow(QWidget):
 
             # Skip if no name or no files/video selected for this entry
             if not person_name or (not use_video and not use_images):
-                # Optionally clear status or set a "Skipped" status
-                # entry_widget.train_status_label.setText("Skipped (Missing info)")
-                # entry_widget.train_status_label.setStyleSheet("color: #aaa;")
-                continue # Move to the next widget
+                continue
 
             # Process this single person entry
             npz_path = self._process_single_person(entry_widget)
 
             if npz_path:
                 processed_count += 1
-                widgets_to_clear.append(entry_widget) # Mark for clearing after loop
+                widgets_to_clear.append(entry_widget)
             else:
                 error_count += 1
-                # Status label is already set within _process_single_person on error/warning
 
         # --- Summary Message ---
         summary_message = f"Training finished. Processed: {processed_count}, Errors/Warnings: {error_count}."
         QMessageBox.information(self, "Training Complete", summary_message)
         print(summary_message)
-
-        # --- Clear successful entries AFTER the loop ---
-        # It's generally safer to modify UI elements (like clearing inputs)
-        # after iterating and processing is fully done.
-        # for widget in widgets_to_clear:
-        #     widget.person_name_input.clear()
-        #     widget.selected_image_paths = []
-        #     widget.selected_video_path = None
-        #     widget.selected_files_label.setText("No files selected.")
-            # Keep the success status label visible
 
     def _process_single_person(self, target_widget: PersonEntryWidget):
         """Handles processing (validation, file handling, embedding) for one PersonEntryWidget. Returns npz_path on success, None on failure."""
@@ -871,16 +808,12 @@ class AdminWindow(QWidget):
         use_video = target_widget.selected_video_path is not None
         use_images = bool(target_widget.selected_image_paths)
 
-        # --- Input Validation ---
-        # Basic checks are done in train_all_persons_action before calling this
-        # Add any more specific validation here if needed
-
         # --- Directory and File Handling ---
         person_folder = os.path.join(self.face_database_dir, person_name)
         extracted_frames_count = 0
         try:
             os.makedirs(person_folder, exist_ok=True)
-            print(f"Processing entry for: {person_name}") # Log start
+            print(f"Processing entry for: {person_name}")
 
             if use_video:
                 # --- Video Frame Extraction ---
@@ -894,13 +827,12 @@ class AdminWindow(QWidget):
 
                 frame_count = 0
                 saved_frame_count = 0
-                # Use the configured frame interval
-                frame_interval = self.training_frame_interval # Use instance variable
+                frame_interval = self.training_frame_interval
 
                 while True:
                     ret, frame = cap.read()
                     if not ret:
-                        break # End of video
+                        break
 
                     if frame_count % frame_interval == 0:
                         # Save frame as JPEG
@@ -910,9 +842,8 @@ class AdminWindow(QWidget):
                         saved_frame_count += 1
 
                     frame_count += 1
-                    # Optional: Update status label periodically during extraction
                     if frame_count % 100 == 0:
-                         target_widget.train_status_label.setText(f"Extracting... (Frame {frame_count})") # Update correct label
+                         target_widget.train_status_label.setText(f"Extracting... (Frame {frame_count})")
                          QApplication.processEvents()
 
 
@@ -923,42 +854,37 @@ class AdminWindow(QWidget):
                 if extracted_frames_count == 0:
                      target_widget.train_status_label.setText("Error: Failed to extract frames.")
                      target_widget.train_status_label.setStyleSheet("color: #f28b82;")
-                     return None # Indicate failure
+                     return None
 
-                target_widget.train_status_label.setText(f"Extracted {extracted_frames_count} frames. Training...") # Update correct label
+                target_widget.train_status_label.setText(f"Extracted {extracted_frames_count} frames. Training...")
                 target_widget.train_status_label.setStyleSheet("color: #8ab4f8;")
                 QApplication.processEvents() # Update UI
 
             elif use_images:
-                # --- Copy Image Files ---
                 target_widget.train_status_label.setText("Copying images...") # Update status
                 target_widget.train_status_label.setStyleSheet("color: #8ab4f8;")
                 QApplication.processEvents()
                 copied_count = 0
-                for img_path in target_widget.selected_image_paths: # Use target_widget's paths
+                for img_path in target_widget.selected_image_paths:
                     try:
-                        # Generate a safe filename (e.g., using basename)
                         dest_filename = os.path.basename(img_path)
                         dest_path = os.path.join(person_folder, dest_filename)
-                        # Avoid overwriting existing files with the same name in the folder?
-                        # For simplicity, we'll overwrite now. Add checks if needed.
                         shutil.copy(img_path, dest_path)
                         print(f"Copied {img_path} to {dest_path}")
                         copied_count += 1
                     except Exception as copy_err:
                         print(f"Error copying file {img_path}: {copy_err}")
-                        # Decide whether to continue or stop on copy error
 
                 if copied_count == 0:
                      target_widget.train_status_label.setText("Error: Failed to copy images.")
                      target_widget.train_status_label.setStyleSheet("color: #f28b82;")
-                     return None # Indicate failure
+                     return None
 
-                target_widget.train_status_label.setText(f"Copied {copied_count} images. Training...") # Update correct label
-                target_widget.train_status_label.setStyleSheet("color: #8ab4f8;") # Processing color
+                target_widget.train_status_label.setText(f"Copied {copied_count} images. Training...")
+                target_widget.train_status_label.setStyleSheet("color: #8ab4f8;")
                 QApplication.processEvents() # Update UI
 
-        except IOError as vid_err: # Specific error for video opening
+        except IOError as vid_err:
              target_widget.train_status_label.setText(f"Error opening video: {vid_err}")
              target_widget.train_status_label.setStyleSheet("color: #f28b82;")
              return None
@@ -969,7 +895,6 @@ class AdminWindow(QWidget):
 
         # --- Embedding Generation (uses images in person_folder) ---
         try:
-            # Call the function from prepare_embeddings
             npz_path = generate_and_save_embeddings(
                 person_name=person_name,
                 person_folder=person_folder,
@@ -980,7 +905,7 @@ class AdminWindow(QWidget):
 
             if npz_path:
                 target_widget.train_status_label.setText(f"Success: Embeddings saved.")
-                target_widget.train_status_label.setStyleSheet("color: #4CAF50;") # Success color
+                target_widget.train_status_label.setStyleSheet("color: #4CAF50;")
 
                 # --- Update Live Recognition Pipeline ---
                 if hasattr(self.camera_widget, 'pipeline') and self.camera_widget.pipeline:
@@ -989,7 +914,6 @@ class AdminWindow(QWidget):
                 else:
                      print(f"Warning: CameraWidget pipeline not available for {person_name}.")
 
-                # --- Don't clear inputs here, handled after loop in train_all_persons_action ---
                 return npz_path # Indicate success
 
             else:
@@ -1003,7 +927,7 @@ class AdminWindow(QWidget):
             target_widget.train_status_label.setText(f"Error during training: {train_err}")
             target_widget.train_status_label.setStyleSheet("color: #f28b82;")
             print(f"Training error for {person_name}: {train_err}")
-            return None # Indicate failure
+            return None
 
     def toggle_camera_feed(self):
         if self.is_feed_running:
@@ -1045,8 +969,8 @@ class AdminWindow(QWidget):
         # Uncheck all navigation buttons first
         self.dashboard_button.setChecked(False)
         self.train_button.setChecked(False)
-        self.database_button.setChecked(False) # Add database button
-        self.records_button.setChecked(False) # Add records button
+        self.database_button.setChecked(False)
+        self.records_button.setChecked(False)
         self.settings_button.setChecked(False)
 
         # Check the clicked navigation button
@@ -1058,31 +982,28 @@ class AdminWindow(QWidget):
         # Update icons for all checkable buttons
         self._update_icon_color(self.dashboard_button)
         self._update_icon_color(self.train_button)
-        self._update_icon_color(self.database_button) # Add database button
-        self._update_icon_color(self.records_button) # Add records button
+        self._update_icon_color(self.database_button)
+        self._update_icon_color(self.records_button)
         self._update_icon_color(self.settings_button)
-        # Logout button icon is static, no need to update here
 
         # Populate records if switching to the records page
-        if index == 3: # Index of the records page
+        if index == 3:
             self.populate_records_table()
 
     def _update_icon_color(self, button):
         """Updates the icon color based on the button's checked state."""
-        # This method now only handles checkable navigation buttons
         icon_base_name = ""
 
         if button == self.dashboard_button:
             icon_base_name = 'dashboard'
         elif button == self.train_button:
-            icon_base_name = 'camera' # Consider renaming icon file if 'train' is better
-        elif button == self.database_button: # Add database button case
+            icon_base_name = 'camera'
+        elif button == self.database_button:
             icon_base_name = 'database'
-        elif button == self.records_button: # Add records button case
+        elif button == self.records_button:
             icon_base_name = 'records'
         elif button == self.settings_button:
             icon_base_name = 'settings'
-        # Removed logout button case
 
         if icon_base_name:
             if button.isChecked():
@@ -1091,29 +1012,25 @@ class AdminWindow(QWidget):
                 icon_path = f"{self.icon_folder}/{icon_base_name}_white.svg"
 
             try:
-                # Using QPixmap for SVG might need QtSvg module installed
-                # but often works directly depending on Qt version/plugins.
                 icon = QIcon(QPixmap(icon_path))
                 if not icon.isNull():
                     button.setIcon(icon)
                 else:
                     print(f"Warning: Could not load icon from {icon_path}")
-                    button.setIcon(QIcon()) # Set an empty icon or a default one
+                    button.setIcon(QIcon())
             except Exception as e:
                 print(f"Error loading icon {icon_path}: {e}")
-                button.setIcon(QIcon()) # Set an empty icon on error
+                button.setIcon(QIcon())
 
     def update_threshold(self):
         try:
             threshold = float(self.threshold_input.text())
             if 0 <= threshold <= 1:
-                # Ensure camera_widget and pipeline exist before setting threshold
                 if hasattr(self.camera_widget, 'pipeline') and self.camera_widget.pipeline:
                     self.camera_widget.set_recognition_threshold(threshold)
                     print(f"Recognition threshold set to: {threshold}")
                 else:
                     print("Warning: CameraWidget or pipeline not initialized. Cannot set threshold.")
-                    # Optionally store the value and apply it when the pipeline starts
             else:
                 QMessageBox.warning(self, "Invalid Input", "Threshold must be between 0.0 and 1.0.")
                 print("Threshold must be between 0 and 1")
@@ -1125,7 +1042,6 @@ class AdminWindow(QWidget):
 
     def populate_database_list(self):
         """Clears and repopulates the face database list view."""
-        # Clear existing widgets in the layout
         while self.database_list_layout.count():
             item = self.database_list_layout.takeAt(0)
             widget = item.widget()
@@ -1135,7 +1051,6 @@ class AdminWindow(QWidget):
         print("Populating database list...")
         try:
             found_files = False
-            # Ensure directory exists before listing
             if not os.path.isdir(self.face_database_dir):
                  raise FileNotFoundError(f"Database directory not found: {self.face_database_dir}")
 
@@ -1149,7 +1064,7 @@ class AdminWindow(QWidget):
                     entry_widget = QWidget()
                     entry_layout = QHBoxLayout(entry_widget)
                     entry_layout.setContentsMargins(5, 5, 5, 5)
-                    entry_widget.setStyleSheet("background-color: #3a3b3e; border-radius: 4px;") # Slightly different bg
+                    entry_widget.setStyleSheet("background-color: #3a3b3e; border-radius: 4px;")
 
                     name_label = QLabel(person_name)
                     name_label.setStyleSheet("font-size: 13px; font-weight: bold; background: none;")
@@ -1164,7 +1079,6 @@ class AdminWindow(QWidget):
                         }
                         QPushButton:hover { background-color: #da190b; }
                     """)
-                    # Use lambda to capture the current person_name for the slot
                     delete_button.clicked.connect(lambda checked=False, name=person_name: self.delete_person_action(name))
 
                     entry_layout.addWidget(name_label)
@@ -1188,14 +1102,14 @@ class AdminWindow(QWidget):
             error_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             error_label.setStyleSheet("color: #f28b82;")
             self.database_list_layout.addWidget(error_label)
-            self.database_list_layout.addStretch() # Push error msg up
+            self.database_list_layout.addStretch()
         except Exception as e:
             print(f"Error populating database list: {e}")
             error_label = QLabel(f"An error occurred: {e}")
             error_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             error_label.setStyleSheet("color: #f28b82;")
             self.database_list_layout.addWidget(error_label)
-            self.database_list_layout.addStretch() # Push error msg up
+            self.database_list_layout.addStretch()
 
     def delete_person_action(self, person_name):
         """Handles the deletion of a person from the database."""
@@ -1234,8 +1148,7 @@ class AdminWindow(QWidget):
                     deleted_folder = True
                 else:
                     print(f"Info: Image folder not found, skipping deletion: {person_image_folder}")
-                    # If the folder doesn't exist, we can still consider it 'successful' in terms of cleanup
-                    deleted_folder = True # Or set based on whether deletion was *attempted* and failed vs not needed
+                    deleted_folder = True
             except Exception as e:
                 print(f"Error deleting image folder {person_image_folder}: {e}")
                 QMessageBox.warning(self, "Deletion Error", f"Could not delete the image folder for {person_name}: {e}")
@@ -1248,11 +1161,9 @@ class AdminWindow(QWidget):
                     pipeline_updated = True
                 else:
                     print(f"Warning: CameraWidget pipeline not available to remove {person_name}.")
-                    # Consider if this is an error or just info
             except Exception as e:
                  print(f"Error updating pipeline to remove {person_name}: {e}")
                  QMessageBox.warning(self, "Pipeline Error", f"Could not update the live recognition pipeline: {e}")
-
 
             # 4. Refresh the UI list
             self.populate_database_list()
@@ -1260,7 +1171,7 @@ class AdminWindow(QWidget):
             # Optional: Show success message if key parts succeeded
             if deleted_npz and deleted_folder and pipeline_updated:
                  QMessageBox.information(self, "Deletion Successful", f"Successfully removed {person_name} from the database and live recognition.")
-            elif deleted_npz: # At least the core file was deleted
+            elif deleted_npz:
                  QMessageBox.information(self, "Deletion Partially Successful", f"Removed {person_name}'s .npz file. Check console for details on folder/pipeline updates.")
 
 
@@ -1270,7 +1181,7 @@ class AdminWindow(QWidget):
     def populate_records_table(self):
         """Fetches detection records and populates the records table."""
         print("Populating detection records table...")
-        self.records_table.setRowCount(0) # Clear existing rows
+        self.records_table.setRowCount(0)
 
         try:
             # Check if pipeline exists and has the method
@@ -1281,28 +1192,24 @@ class AdminWindow(QWidget):
                 detection_log = self.camera_widget.pipeline.get_detection_log()
 
                 if not detection_log:
-                    # Optional: Display a message in the table if no records
                     self.records_table.setRowCount(1)
                     no_records_item = QTableWidgetItem("No detection records available yet.")
                     no_records_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    # Make item non-editable and non-selectable if desired
                     no_records_item.setFlags(no_records_item.flags() ^ Qt.ItemFlag.ItemIsSelectable ^ Qt.ItemFlag.ItemIsEditable)
                     self.records_table.setItem(0, 0, no_records_item)
-                    # Span the message across all columns
                     self.records_table.setSpan(0, 0, 1, self.records_table.columnCount())
                     print("No detection records found in the pipeline.")
                     return
 
                 self.records_table.setRowCount(len(detection_log))
-                for row, record in enumerate(reversed(detection_log)): # Show newest first
+                for row, record in enumerate(reversed(detection_log)):
                     name, timestamp, similarity = record
 
                     # Format timestamp
                     dt_object = datetime.datetime.fromtimestamp(timestamp)
                     date_str = dt_object.strftime("%Y-%m-%d")
-                    # Change time format to 12-hour AM/PM
                     time_str = dt_object.strftime("%I:%M %p")
-                    accuracy_str = f"{similarity:.2f}" # Format similarity
+                    accuracy_str = f"{similarity:.2f}"
 
                     # Create table items
                     name_item = QTableWidgetItem(name)
@@ -1324,7 +1231,6 @@ class AdminWindow(QWidget):
 
             else:
                 print("Warning: Camera pipeline or get_detection_log method not available.")
-                # Optional: Display an error message in the table
                 self.records_table.setRowCount(1)
                 error_item = QTableWidgetItem("Could not retrieve records (Pipeline not ready).")
                 error_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -1335,7 +1241,6 @@ class AdminWindow(QWidget):
 
         except Exception as e:
             print(f"Error populating records table: {e}")
-            # Optional: Display an error message in the table
             self.records_table.setRowCount(1)
             error_item = QTableWidgetItem(f"Error loading records: {e}")
             error_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -1360,10 +1265,9 @@ class AdminWindow(QWidget):
                     settings_applied.append("Log Interval")
                 else:
                     print("Warning: Camera pipeline not available to set log interval.")
-                    # Optionally store and apply later if needed
             else:
                 QMessageBox.warning(self, "Invalid Input", f"Log Interval must be a number between 0 and 100. Input was '{log_interval_str}'.")
-                return # Stop applying if one setting is invalid
+                return
 
             # Apply Training Frame Interval
             train_interval_str = self.train_interval_input.text()
@@ -1376,10 +1280,10 @@ class AdminWindow(QWidget):
                     print(f"Training frame interval set to: {self.training_frame_interval} frames")
                     settings_applied.append("Training Frame Interval")
                 else:
-                    print("Training frame interval unchanged.") # Avoid redundant message
+                    print("Training frame interval unchanged.")
             else:
                  QMessageBox.warning(self, "Invalid Input", f"Training Frame Interval must be a number between 1 and 100. Input was '{train_interval_str}'.")
-                 return # Stop applying if one setting is invalid
+                 return
 
             if settings_applied:
                 QMessageBox.information(self, "Settings Applied", f"{', '.join(settings_applied)} updated successfully.")
@@ -1399,7 +1303,7 @@ class AdminWindow(QWidget):
         print("Logging out...")
         # Stop camera feed if running
         if self.is_feed_running:
-            self.toggle_camera_feed() # This handles stopping the feed and updating button
+            self.toggle_camera_feed()
 
         # Close the admin window
         self.close()
@@ -1414,19 +1318,16 @@ class AdminWindow(QWidget):
         """Ensure camera feed stops when the admin window is closed."""
         print("Admin window closing...")
         if self.is_feed_running:
-            # Assuming stop_feed correctly releases the camera and stops threads/timers
             self.camera_widget.stop_feed()
             print("Camera feed stopped due to window close.")
-        # Removed the call to self.camera_widget.cleanup() as it doesn't exist
-        event.accept() # Accept the close event
-
+        event.accept()
 
 def login():
     if username.text() == ADMIN_USERNAME and password.text() == ADMIN_PASSWORD:
         global admin_window
         admin_window = AdminWindow()
         admin_window.show()
-        window.hide() # Hide login window instead of closing
+        window.hide()
     else:
         error_label.setText("Invalid username or password.")
         error_label.show()
