@@ -28,6 +28,10 @@ class FaceRecognitionPipeline:
         self.log_interval = 15
         self.show_fps = False  # Changed to False by default
 
+        # Frame skipping variables
+        self.frame_skip_interval = 1  # Default: process every frame
+        self.last_boxes = []  # Store boxes from last detection
+
         # Ensure log directory exists
         os.makedirs(LOG_DIR, exist_ok=True)
         # Load existing logs from file
@@ -287,17 +291,29 @@ class FaceRecognitionPipeline:
         fps = 1 / (self.curr_frame_time - self.prev_frame_time) if self.prev_frame_time > 0 else 0
         self.fps = 0.9 * self.fps + 0.1 * fps  # Smooth FPS using exponential moving average
         self.prev_frame_time = self.curr_frame_time
+
+        # Frame skipping logic
+        current_boxes = []
+        if self.frame_count % self.frame_skip_interval == 0:
+            # Only detect faces on interval frames
+            boxes, _ = detect_faces(frame)
+            if boxes is not None and len(boxes) > 0:
+                self.last_boxes = boxes
+                current_boxes = boxes
+            else:
+                self.last_boxes = []
+                current_boxes = []
+        else:
+            # Use last known boxes for skipped frames
+            current_boxes = self.last_boxes
         
-        boxes, _ = detect_faces(frame)
-        
-        if len(boxes) == 0:
-            # Only show FPS if enabled
+        if len(current_boxes) == 0:
             if self.show_fps:
                 cv2.putText(frame, f'FPS: {self.fps:.1f}', (10, 30), 
                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             return frame
             
-        for box in boxes:
+        for box in current_boxes:
             face_id = next(
                 (fid for fid, data in self.results.items() if np.linalg.norm(np.array(data['box']) - box) < 50), 
                 f"face_{self.next_id}"
@@ -377,6 +393,20 @@ class FaceRecognitionPipeline:
         """Returns the current log interval."""
         with self.lock: # Ensure thread-safe access
             return self.log_interval
+
+    def set_frame_skip_interval(self, interval):
+        """Sets the frame skip interval."""
+        if isinstance(interval, int) and interval >= 1:
+            with self.lock:
+                self.frame_skip_interval = interval
+            print(f"Frame skip interval set to: {interval}")
+        else:
+            print(f"Invalid frame skip interval: {interval}. Must be a positive integer.")
+
+    def get_frame_skip_interval(self):
+        """Returns the current frame skip interval."""
+        with self.lock:
+            return self.frame_skip_interval
 
 class CameraWidget(QWidget):
     def __init__(self, parent=None):

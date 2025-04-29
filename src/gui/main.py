@@ -563,6 +563,26 @@ class AdminWindow(QWidget):
         """)
         settings_form_layout.addRow(train_interval_label, self.train_interval_input)
 
+        # Frame Skip Interval Setting
+        frame_skip_label = QLabel("Frame Skip Interval:")
+        frame_skip_label.setStyleSheet("background: none; font-weight: 600;")
+        self.frame_skip_input = QLineEdit()
+        self.frame_skip_input.setPlaceholderText("e.g., 1")
+        default_frame_skip = 1
+        if hasattr(self.camera_widget, 'pipeline') and self.camera_widget.pipeline:
+            default_frame_skip = self.camera_widget.pipeline.get_frame_skip_interval()
+        self.frame_skip_input.setText(str(default_frame_skip))
+        self.frame_skip_input.setValidator(QIntValidator(1, 30, self))
+        self.frame_skip_input.setFixedWidth(80)
+        self.frame_skip_input.setStyleSheet("""
+            QLineEdit {
+                padding: 6px; border: 1px solid #5f6368; border-radius: 4px;
+                background-color: #3a3b3e; color: white;
+            }
+            QLineEdit:focus { border: 1px solid #8ab4f8; }
+        """)
+        settings_form_layout.addRow(frame_skip_label, self.frame_skip_input)
+
         settings_container_layout.addLayout(settings_form_layout)
 
         # Apply Settings Button
@@ -1220,6 +1240,22 @@ class AdminWindow(QWidget):
             else:
                  QMessageBox.warning(self, "Invalid Input", f"Training Frame Interval must be a number between 1 and 100. Input was '{train_interval_str}'.")
                  return
+
+            # Apply Frame Skip Interval
+            frame_skip_str = self.frame_skip_input.text()
+            frame_skip_state, frame_skip_val, _ = self.frame_skip_input.validator().validate(frame_skip_str, 0)
+
+            if frame_skip_state == QIntValidator.State.Acceptable:
+                frame_skip = int(frame_skip_val)
+                if hasattr(self.camera_widget, 'pipeline') and self.camera_widget.pipeline:
+                    self.camera_widget.pipeline.set_frame_skip_interval(frame_skip)
+                    print(f"Frame skip interval set to: {frame_skip}")
+                    settings_applied.append("Frame Skip Interval")
+                else:
+                    print("Warning: Camera pipeline not available to set frame skip interval.")
+            else:
+                QMessageBox.warning(self, "Invalid Input", f"Frame Skip Interval must be a number between 1 and 30. Input was '{frame_skip_str}'.")
+                return
 
             if settings_applied:
                 QMessageBox.information(self, "Settings Applied", f"{', '.join(settings_applied)} updated successfully.")
