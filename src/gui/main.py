@@ -40,6 +40,10 @@ cursor_pointer = QCursor(Qt.CursorShape.PointingHandCursor)
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
 
+# User credentials
+USER_USERNAME = "user"
+USER_PASSWORD = "user123"
+
 # --- Person Entry Widget ---
 class PersonEntryWidget(QWidget):
     """Widget for entering details for a single person."""
@@ -1294,12 +1298,335 @@ class AdminWindow(QWidget):
             print("Camera feed stopped due to window close.")
         event.accept()
 
+# --- User Window (New) ---
+class UserWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("User Screen")
+        self.resize(900, 600)
+        self.is_feed_running = False
+        self.icon_folder = "src/gui/icons"
+
+        # User window layout
+        user_layout = QHBoxLayout(self)
+        user_layout.setContentsMargins(0, 0, 0, 0)
+        user_layout.setSpacing(0)
+
+        # Sidebar
+        sidebar = QWidget()
+        sidebar.setFixedWidth(220)
+        sidebar_layout = QVBoxLayout(sidebar)
+        sidebar_layout.setContentsMargins(15, 15, 15, 15)
+        sidebar_layout.setSpacing(10)
+        sidebar_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        sidebar.setObjectName("sidebar")
+
+        # Dashboard button
+        self.dashboard_button = QPushButton("Dashboard")
+        self.dashboard_button.setIconSize(QSize(18, 18))
+        self.dashboard_button.setCursor(cursor_pointer)
+        self.dashboard_button.setProperty("class", "sidebar-buttons")
+        self.dashboard_button.setCheckable(True)
+        self.dashboard_button.setChecked(True)
+        sidebar_layout.addWidget(self.dashboard_button)
+
+        # Records button
+        self.records_button = QPushButton("Records")
+        self.records_button.setIconSize(QSize(18, 18))
+        self.records_button.setCursor(cursor_pointer)
+        self.records_button.setProperty("class", "sidebar-buttons")
+        self.records_button.setCheckable(True)
+        sidebar_layout.addWidget(self.records_button)
+
+        sidebar_layout.addStretch()
+
+        # Logout Button
+        self.logout_button = QPushButton("Logout")
+        self.logout_button.setIconSize(QSize(18, 18))
+        self.logout_button.setCursor(cursor_pointer)
+        self.logout_button.setProperty("class", "sidebar-buttons")
+
+        try:
+            logout_icon_path = f"{self.icon_folder}/logout_white.svg"
+            logout_icon = QIcon(QPixmap(logout_icon_path))
+            if not logout_icon.isNull():
+                self.logout_button.setIcon(logout_icon)
+            else:
+                print(f"Warning: Could not load logout icon from {logout_icon_path}")
+        except Exception as e:
+            print(f"Error loading logout icon {logout_icon_path}: {e}")
+
+        self.logout_button.clicked.connect(self.logout_action)
+        sidebar_layout.addWidget(self.logout_button)
+
+        # Stacked widget
+        self.contentStack = QStackedWidget()
+
+        # --- Dashboard page ---
+        dashboard_page = QWidget()
+        dashboard_layout = QVBoxLayout(dashboard_page)
+        dashboard_layout.setContentsMargins(15, 15, 15, 15)
+        dashboard_layout.setSpacing(15)
+
+        # Live camera card
+        camera_card = QWidget()
+        camera_card_layout = QVBoxLayout(camera_card)
+        camera_card_layout.setContentsMargins(15, 15, 15, 15)
+        camera_card_layout.setSpacing(15)
+
+        camera_top_layout = QHBoxLayout()
+        camera_label = QLabel("Live Face Recognition Feed")
+        camera_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        camera_label.setObjectName("camera-label")
+
+        self.toggle_feed_button = QPushButton("Start Feed")
+        self.toggle_feed_button.setCursor(cursor_pointer)
+        self.toggle_feed_button.setFixedWidth(100)
+        self.toggle_feed_button.clicked.connect(self.toggle_camera_feed)
+        self.toggle_feed_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50; color: white; font-weight: bold;
+                border: none; border-radius: 4px; padding: 8px;
+            }
+            QPushButton:hover { background-color: #45a049; }
+        """)
+
+        camera_top_layout.addWidget(camera_label)
+        camera_top_layout.addStretch()
+        camera_top_layout.addWidget(self.toggle_feed_button)
+
+        self.camera_widget = CameraWidget() # Reuse CameraWidget
+        camera_card_layout.addLayout(camera_top_layout)
+        camera_card_layout.addWidget(self.camera_widget)
+        camera_card.setStyleSheet("background-color: #2a2b2e; border-radius: 6px;")
+        camera_card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
+        dashboard_layout.addWidget(camera_card)
+        # Note: Threshold card is intentionally omitted for the user view
+
+        # --- Records page ---
+        records_page = QWidget()
+        records_layout = QVBoxLayout(records_page)
+        records_layout.setContentsMargins(25, 25, 25, 25)
+        records_layout.setSpacing(15)
+
+        records_top_layout = QHBoxLayout()
+        records_label = QLabel("Detection Records")
+        records_label.setStyleSheet("font-size: 16px; font-weight: bold;")
+        self.refresh_records_button = QPushButton("Refresh Records")
+        self.refresh_records_button.setCursor(cursor_pointer)
+        self.refresh_records_button.clicked.connect(self.populate_records_table)
+        self.refresh_records_button.setStyleSheet("""
+            QPushButton {
+                background-color: #5f6368; color: white;
+                border: none; border-radius: 4px; padding: 6px 10px; max-width: 150px;
+            }
+            QPushButton:hover { background-color: #707478; }
+        """)
+        records_top_layout.addWidget(records_label)
+        records_top_layout.addStretch()
+        records_top_layout.addWidget(self.refresh_records_button)
+        records_layout.addLayout(records_top_layout)
+
+        self.records_table = QTableWidget()
+        self.records_table.setColumnCount(4)
+        self.records_table.setHorizontalHeaderLabels(["Name", "Date", "Time", "Accuracy"])
+        self.records_table.verticalHeader().setVisible(False)
+        self.records_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.records_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.records_table.setAlternatingRowColors(True)
+        self.records_table.setStyleSheet(TABLE_STYLES)
+
+        header = self.records_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+
+        records_layout.addWidget(self.records_table)
+
+        # Add pages to stack
+        self.contentStack.addWidget(dashboard_page)
+        self.contentStack.addWidget(records_page)
+
+        user_layout.addWidget(sidebar)
+        user_layout.addWidget(self.contentStack)
+
+        # Connect sidebar buttons
+        self.dashboard_button.clicked.connect(lambda: self._update_button_states(0, self.dashboard_button))
+        self.records_button.clicked.connect(lambda: self._update_button_states(1, self.records_button))
+
+        # Initial population of records table
+        self.populate_records_table()
+
+        # Main window styling
+        self.setStyleSheet(ADMIN_STYLES) # Can reuse admin styles
+
+        # Update icons initially
+        self._update_icon_color(self.dashboard_button)
+        self._update_icon_color(self.records_button)
+
+    def toggle_camera_feed(self):
+        # Same logic as AdminWindow
+        if self.is_feed_running:
+            self.camera_widget.stop_feed()
+            self.toggle_feed_button.setText("Start Feed")
+            self.toggle_feed_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #4CAF50; color: white; font-weight: bold;
+                    border: none; border-radius: 4px; padding: 8px;
+                }
+                QPushButton:hover { background-color: #45a049; }
+            """)
+            self.is_feed_running = False
+        else:
+            self.camera_widget.start_feed()
+            self.toggle_feed_button.setText("Stop Feed")
+            self.toggle_feed_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #f44336; color: white; font-weight: bold;
+                    border: none; border-radius: 4px; padding: 8px;
+                }
+                QPushButton:hover { background-color: #da190b; }
+            """)
+            self.is_feed_running = True
+
+    def _update_button_states(self, index, clicked_button):
+        # Uncheck all navigation buttons first
+        self.dashboard_button.setChecked(False)
+        self.records_button.setChecked(False)
+
+        # Check the clicked navigation button
+        clicked_button.setChecked(True)
+
+        # Switch to the correct page in the stack
+        self.contentStack.setCurrentIndex(index)
+
+        # Update icons for all checkable buttons
+        self._update_icon_color(self.dashboard_button)
+        self._update_icon_color(self.records_button)
+
+        # Populate records if switching to the records page
+        if index == 1:
+            self.populate_records_table()
+
+    def _update_icon_color(self, button):
+        """Updates the icon color based on the button's checked state."""
+        icon_base_name = ""
+        if button == self.dashboard_button:
+            icon_base_name = 'dashboard'
+        elif button == self.records_button:
+            icon_base_name = 'records'
+
+        if icon_base_name:
+            if button.isChecked():
+                icon_path = f"{self.icon_folder}/{icon_base_name}_black.svg"
+            else:
+                icon_path = f"{self.icon_folder}/{icon_base_name}_white.svg"
+
+            try:
+                icon = QIcon(QPixmap(icon_path))
+                if not icon.isNull():
+                    button.setIcon(icon)
+                else:
+                    print(f"Warning: Could not load icon from {icon_path}")
+                    button.setIcon(QIcon())
+            except Exception as e:
+                print(f"Error loading icon {icon_path}: {e}")
+                button.setIcon(QIcon())
+
+    def populate_records_table(self):
+        """Fetches detection records and populates the records table."""
+        # This method can be identical to the one in AdminWindow
+        print("Populating detection records table...")
+        self.records_table.setRowCount(0)
+
+        try:
+            if hasattr(self.camera_widget, 'pipeline') and \
+               self.camera_widget.pipeline and \
+               hasattr(self.camera_widget.pipeline, 'get_detection_log'):
+
+                detection_log = self.camera_widget.pipeline.get_detection_log()
+
+                if not detection_log:
+                    self.records_table.setRowCount(1)
+                    no_records_item = QTableWidgetItem("No detection records available yet.")
+                    no_records_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    no_records_item.setFlags(no_records_item.flags() ^ Qt.ItemFlag.ItemIsSelectable ^ Qt.ItemFlag.ItemIsEditable)
+                    self.records_table.setItem(0, 0, no_records_item)
+                    self.records_table.setSpan(0, 0, 1, self.records_table.columnCount())
+                    print("No detection records found in the pipeline.")
+                    return
+
+                self.records_table.setRowCount(len(detection_log))
+                for row, record in enumerate(reversed(detection_log)):
+                    name, timestamp, similarity = record
+                    dt_object = datetime.datetime.fromtimestamp(timestamp)
+                    date_str = dt_object.strftime("%Y-%m-%d")
+                    time_str = dt_object.strftime("%I:%M %p")
+                    accuracy_str = f"{similarity:.2f}"
+                    name_item = QTableWidgetItem(name)
+                    date_item = QTableWidgetItem(date_str)
+                    time_item = QTableWidgetItem(time_str)
+                    accuracy_item = QTableWidgetItem(accuracy_str)
+                    time_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    accuracy_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    self.records_table.setItem(row, 0, name_item)
+                    self.records_table.setItem(row, 1, date_item)
+                    self.records_table.setItem(row, 2, time_item)
+                    self.records_table.setItem(row, 3, accuracy_item)
+                print(f"Populated table with {len(detection_log)} records.")
+            else:
+                print("Warning: Camera pipeline or get_detection_log method not available.")
+                self.records_table.setRowCount(1)
+                error_item = QTableWidgetItem("Could not retrieve records (Pipeline not ready).")
+                error_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                error_item.setFlags(error_item.flags() ^ Qt.ItemFlag.ItemIsSelectable ^ Qt.ItemFlag.ItemIsEditable)
+                self.records_table.setItem(0, 0, error_item)
+                self.records_table.setSpan(0, 0, 1, self.records_table.columnCount())
+        except Exception as e:
+            print(f"Error populating records table: {e}")
+            self.records_table.setRowCount(1)
+            error_item = QTableWidgetItem(f"Error loading records: {e}")
+            error_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            error_item.setFlags(error_item.flags() ^ Qt.ItemFlag.ItemIsSelectable ^ Qt.ItemFlag.ItemIsEditable)
+            self.records_table.setItem(0, 0, error_item)
+            self.records_table.setSpan(0, 0, 1, self.records_table.columnCount())
+
+    def logout_action(self):
+        """Logs out the user, closes the user window, and shows the login window."""
+        print("Logging out...")
+        if self.is_feed_running:
+            self.toggle_camera_feed()
+        self.close()
+        username.clear()
+        password.clear()
+        error_label.hide()
+        window.show()
+
+    def closeEvent(self, event):
+        """Ensure camera feed stops when the user window is closed."""
+        print("User window closing...")
+        if self.is_feed_running:
+            self.camera_widget.stop_feed()
+            print("Camera feed stopped due to window close.")
+        event.accept()
+
+
 def login():
+    # Check admin credentials first
     if username.text() == ADMIN_USERNAME and password.text() == ADMIN_PASSWORD:
         global admin_window
         admin_window = AdminWindow()
         admin_window.show()
         window.hide()
+    # Check user credentials next
+    elif username.text() == USER_USERNAME and password.text() == USER_PASSWORD:
+        global user_window # Need a separate global variable
+        user_window = UserWindow()
+        user_window.show()
+        window.hide()
+    # Otherwise, show error
     else:
         error_label.setText("Invalid username or password.")
         error_label.show()
@@ -1365,5 +1692,6 @@ app.setStyleSheet(LOGIN_STYLES)
 
 # --- Show Window and Run Application ---
 admin_window = None
+user_window = None # Add global variable for user window
 window.show()
 sys.exit(app.exec())
