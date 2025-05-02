@@ -7,3 +7,8 @@ src/backend/face_database/*
 .venv
 uv.lock
 logs
+
+app.spec
+build
+dist
+face_database

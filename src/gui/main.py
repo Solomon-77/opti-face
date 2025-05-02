@@ -25,6 +25,14 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QTimer, QSize
 from PyQt6.QtGui import QCursor, QIcon, QPixmap, QIntValidator 
+# Import helper functions (adjust path if app.py is elsewhere)
+import sys
+# Add project root to path if running script directly for dev imports
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+from app import resource_path, get_writable_path # Import from app.py
+
 from src.backend.inference import CameraWidget
 from src.backend.prepare_embeddings import generate_and_save_embeddings
 from src.backend.utils.face_utils import load_face_recognition_model
@@ -141,13 +149,16 @@ class AdminWindow(QWidget):
         self.setWindowTitle("Admin Screen")
         self.resize(900, 600)
         self.is_feed_running = False
-        self.face_database_dir = './src/backend/face_database/'
+        # Use get_writable_path for the database directory
+        self.face_database_dir = get_writable_path("face_database")
         self.person_entry_widgets = []
         self.training_frame_interval = 5
-        self.icon_folder = "src/gui/icons"
+        # Use resource_path for icons
+        self.icon_folder = resource_path("src/gui/icons")
 
         try:
-            model_path = "src/backend/checkpoints/edgeface_s_gamma_05.pt"
+            # Use resource_path for the model
+            model_path = resource_path("src/backend/checkpoints/edgeface_s_gamma_05.pt")
             self.training_model, self.training_device = load_face_recognition_model(model_path=model_path)
             print("Training model loaded successfully.")
         except Exception as e:
@@ -220,7 +231,8 @@ class AdminWindow(QWidget):
         self.logout_button.setProperty("class", "sidebar-buttons")
 
         try:
-            logout_icon_path = f"{self.icon_folder}/logout_white.svg"
+            # Use resolved icon_folder path
+            logout_icon_path = os.path.join(self.icon_folder, "logout_white.svg")
             logout_icon = QIcon(QPixmap(logout_icon_path))
             if not logout_icon.isNull():
                 self.logout_button.setIcon(logout_icon)
@@ -512,21 +524,24 @@ class AdminWindow(QWidget):
         fps_display_label.setStyleSheet("background: none; font-weight: 600;")
         self.fps_toggle_checkbox = QCheckBox()
         self.fps_toggle_checkbox.setChecked(False)  # Default to not showing FPS
-        self.fps_toggle_checkbox.setStyleSheet("""
-            QCheckBox {
+        # Resolve path for CSS url() and format correctly
+        check_icon_path_raw = os.path.join(self.icon_folder, "check_black.svg")
+        check_icon_path_css = check_icon_path_raw.replace("\\", "/") # Ensure forward slashes for CSS
+        self.fps_toggle_checkbox.setStyleSheet(f"""
+            QCheckBox {{
                 background: none;
-            }
-            QCheckBox::indicator {
+            }}
+            QCheckBox::indicator {{
                 width: 18px;
                 height: 18px;
                 background-color: #3a3b3e;
                 border: 1px solid #5f6368;
                 border-radius: 3px;
-            }
-            QCheckBox::indicator:checked {
+            }}
+            QCheckBox::indicator:checked {{
                 background-color: #8ab4f8;
-                image: url(src/gui/icons/check_black.svg);
-            }
+                image: url({check_icon_path_css});
+            }}
         """)
         settings_form_layout.addRow(fps_display_label, self.fps_toggle_checkbox)
 
@@ -960,9 +975,9 @@ class AdminWindow(QWidget):
 
         if icon_base_name:
             if button.isChecked():
-                icon_path = f"{self.icon_folder}/{icon_base_name}_black.svg"
+                icon_path = os.path.join(self.icon_folder, f"{icon_base_name}_black.svg")
             else:
-                icon_path = f"{self.icon_folder}/{icon_base_name}_white.svg"
+                icon_path = os.path.join(self.icon_folder, f"{icon_base_name}_white.svg")
 
             try:
                 icon = QIcon(QPixmap(icon_path))
@@ -1305,7 +1320,8 @@ class UserWindow(QWidget):
         self.setWindowTitle("User Screen")
         self.resize(900, 600)
         self.is_feed_running = False
-        self.icon_folder = "src/gui/icons"
+        # Use resource_path for icons
+        self.icon_folder = resource_path("src/gui/icons")
 
         # User window layout
         user_layout = QHBoxLayout(self)
@@ -1347,7 +1363,8 @@ class UserWindow(QWidget):
         self.logout_button.setProperty("class", "sidebar-buttons")
 
         try:
-            logout_icon_path = f"{self.icon_folder}/logout_white.svg"
+            # Use resolved icon_folder path
+            logout_icon_path = os.path.join(self.icon_folder, "logout_white.svg")
             logout_icon = QIcon(QPixmap(logout_icon_path))
             if not logout_icon.isNull():
                 self.logout_button.setIcon(logout_icon)
@@ -1520,9 +1537,9 @@ class UserWindow(QWidget):
 
         if icon_base_name:
             if button.isChecked():
-                icon_path = f"{self.icon_folder}/{icon_base_name}_black.svg"
+                icon_path = os.path.join(self.icon_folder, f"{icon_base_name}_black.svg")
             else:
-                icon_path = f"{self.icon_folder}/{icon_base_name}_white.svg"
+                icon_path = os.path.join(self.icon_folder, f"{icon_base_name}_white.svg")
 
             try:
                 icon = QIcon(QPixmap(icon_path))

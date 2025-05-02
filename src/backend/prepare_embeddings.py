@@ -1,11 +1,18 @@
 import os
 import numpy as np
-import torch # Added for type hinting if needed, ensure installed
-from src.backend.utils.face_utils import preprocess_image, load_face_recognition_model # Corrected import path assuming prepare_embeddings is run from root or src
+import torch
+# Import helper functions (adjust path if needed)
+import sys
+project_root_prep = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+if project_root_prep not in sys.path:
+    sys.path.insert(0, project_root_prep)
+from app import resource_path, get_writable_path # Import from app.py
 
-# Default paths (can be overridden)
-DEFAULT_FACE_DATABASE_DIR = './src/backend/face_database/'
-DEFAULT_MODEL_PATH = "src/backend/checkpoints/edgeface_s_gamma_05.pt"
+from src.backend.utils.face_utils import preprocess_image, load_face_recognition_model
+
+# Default paths using helper functions
+DEFAULT_FACE_DATABASE_DIR = get_writable_path("face_database")
+DEFAULT_MODEL_PATH = resource_path("src/backend/checkpoints/edgeface_s_gamma_05.pt")
 
 def generate_and_save_embeddings(person_name, person_folder, output_dir, model, device):
     """
@@ -59,23 +66,32 @@ def generate_and_save_embeddings(person_name, person_folder, output_dir, model, 
     return None
 
 
-def process_all_persons(face_database_dir=DEFAULT_FACE_DATABASE_DIR, model_path=DEFAULT_MODEL_PATH):
+def process_all_persons(face_database_dir=None, model_path=None):
     """Processes all person folders in the face database directory."""
-    model, device = load_face_recognition_model(model_path=model_path)
+    # Use defaults if None, otherwise use provided paths
+    db_dir = face_database_dir if face_database_dir is not None else DEFAULT_FACE_DATABASE_DIR
+    m_path = model_path if model_path is not None else DEFAULT_MODEL_PATH
+
+    print(f"Processing database: {db_dir}")
+    print(f"Using model: {m_path}")
+
+    model, device = load_face_recognition_model(model_path=m_path) # Pass resolved model path
 
     # Process each person's directory found directly under face_database_dir
-    for person_name in os.listdir(face_database_dir):
-        person_folder = os.path.join(face_database_dir, person_name)
+    if not os.path.isdir(db_dir):
+        print(f"Error: Database directory not found: {db_dir}")
+        return
+
+    for item_name in os.listdir(db_dir):
+        item_path = os.path.join(db_dir, item_name)
         # Check if it's a directory AND not a .npz file (to avoid processing existing embeddings)
-        if os.path.isdir(person_folder):
-            generate_and_save_embeddings(person_name, person_folder, face_database_dir, model, device)
+        if os.path.isdir(item_path):
+            # Pass the resolved db_dir as the output directory
+            generate_and_save_embeddings(item_name, item_path, db_dir, model, device)
 
 # Allow running the script directly to process all persons
 if __name__ == "__main__":
     print("Starting batch processing of all persons in the database...")
-    # Use default directory, assumes script is run from a location where the path is valid
+    # Uses resolved default paths defined above
     process_all_persons()
     print("Batch processing finished.")
-
-# Remove the standalone call create_face_embeddings() if it exists outside __main__
-# create_face_embeddings() # Remove this line if present

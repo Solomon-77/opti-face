@@ -7,11 +7,21 @@ import os
 import warnings
 warnings.filterwarnings("ignore")
 from torchvision import transforms
+# Import helper functions (adjust path if needed)
+import sys
+project_root_face_utils = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+if project_root_face_utils not in sys.path:
+    sys.path.insert(0, project_root_face_utils)
+from app import resource_path # Import from app.py
+
 from src.backend.utils.scrfd import FaceDetector
 from src.backend.utils.edgeface import get_model
 
+# Resolve the path to the ONNX file using resource_path
+scrfd_model_path = resource_path('src/backend/checkpoints/scrfd_500m.onnx')
+
 # Initialize face detector and MediaPipe FaceMesh
-face_detector = FaceDetector(onnx_file='src/backend/checkpoints/scrfd_500m.onnx')
+face_detector = FaceDetector(onnx_file=scrfd_model_path)
 mp_face_mesh = mp.solutions.face_mesh.FaceMesh(
     static_image_mode=True,
     max_num_faces=1,
@@ -42,7 +52,11 @@ LANDMARK_GROUPS = [
     [([291, 321, 314], [292, 317, 375, 407, 408, 318, 325, 308, 409, 310, 311])]
 ]
 
-def load_face_recognition_model(model_path="src/backend/checkpoints/edgeface_s_gamma_05.pt"):
+def load_face_recognition_model(model_path=None): # Allow model_path to be None initially
+    # Use default path if none provided, resolving it
+    if model_path is None:
+        model_path = resource_path("src/backend/checkpoints/edgeface_s_gamma_05.pt")
+
     # Automatically infer model name from the file name
     model_name = os.path.splitext(os.path.basename(model_path))[0]
     

@@ -22,3 +22,24 @@ Ongoing...
     ```bash
     uv run app.py
     ```
+
+## Building with PyInstaller
+
+1. **Install PyInstaller:**
+    ```
+    uv add pyinstaller
+    ```
+
+2. **Navigate to project directory and enter the command:**
+    ```
+    .venv/Scripts/activate
+    ```
+
+3. **Run this command:**
+    ```
+    pyinstaller app.spec
+    ```
+    or
+    ```
+    pyinstaller --noconfirm --onedir --windowed --add-data "src/backend/checkpoints;src/backend/checkpoints" --add-data "src/gui/icons;src/gui/icons" --collect-data mediapipe app.py
+    ```

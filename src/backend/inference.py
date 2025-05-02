@@ -8,18 +8,30 @@ import time
 import csv # Added for CSV logging
 from collections import deque # Use deque for efficient fixed-size log
 from torch.nn.functional import cosine_similarity
+# Import helper functions (adjust path if needed)
+import sys
+project_root_inf = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+if project_root_inf not in sys.path:
+    sys.path.insert(0, project_root_inf)
+from app import resource_path, get_writable_path # Import from app.py
+
 from src.backend.utils.face_utils import detect_faces, align_face, load_face_recognition_model, transform
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QStackedLayout
 from PyQt6.QtCore import QTimer, pyqtSignal, Qt
 from PyQt6.QtGui import QImage, QPixmap, QColor
 
-LOG_FILE_PATH = './logs/detection_log.csv' # Define log file path
-LOG_DIR = os.path.dirname(LOG_FILE_PATH)
+# Use get_writable_path for logs directory
+LOG_DIR = get_writable_path("logs")
+LOG_FILE_PATH = os.path.join(LOG_DIR, 'detection_log.csv') # Define log file path using resolved dir
 
 class FaceRecognitionPipeline:
     def __init__(self):
-        self.model, self.device = load_face_recognition_model()
-        self.face_database_dir = './src/backend/face_database/' # Store path
+        # Resolve model path first
+        model_path = resource_path("src/backend/checkpoints/edgeface_s_gamma_05.pt")
+        # Pass resolved path to loader
+        self.model, self.device = load_face_recognition_model(model_path=model_path)
+        # Use get_writable_path for the database directory
+        self.face_database_dir = get_writable_path("face_database")
         self.saved_embeddings = []
         self.saved_labels = []
         self.lock = threading.Lock()
@@ -32,8 +44,8 @@ class FaceRecognitionPipeline:
         self.frame_skip_interval = 1  # Default: process every frame
         self.last_boxes = []  # Store boxes from last detection
 
-        # Ensure log directory exists
-        os.makedirs(LOG_DIR, exist_ok=True)
+        # Ensure log directory exists (get_writable_path handles this)
+        # os.makedirs(LOG_DIR, exist_ok=True) # No longer needed here
         # Load existing logs from file
         self._load_logs_from_file()
 
@@ -59,6 +71,7 @@ class FaceRecognitionPipeline:
 
     def _load_logs_from_file(self):
         """Loads previous detection logs from the CSV file into the deque."""
+        # LOG_FILE_PATH is now correctly resolved
         try:
             if os.path.exists(LOG_FILE_PATH):
                 print(f"Loading logs from {LOG_FILE_PATH}...")
@@ -97,6 +110,8 @@ class FaceRecognitionPipeline:
             else:
                 print(f"Log file {LOG_FILE_PATH} not found. Starting fresh.")
                 # Create the file with header if it doesn't exist
+                # Ensure directory exists before writing (get_writable_path should have done this)
+                os.makedirs(os.path.dirname(LOG_FILE_PATH), exist_ok=True)
                 with open(LOG_FILE_PATH, 'w', newline='') as csvfile:
                     writer = csv.writer(csvfile)
                     writer.writerow(['Name', 'Timestamp', 'Similarity']) # Write header
@@ -106,7 +121,10 @@ class FaceRecognitionPipeline:
 
     def _append_log_to_file(self, person_label, timestamp, similarity):
         """Appends a single detection log entry to the CSV file."""
+        # LOG_FILE_PATH is now correctly resolved
         try:
+            # Ensure directory exists before writing (get_writable_path should have done this)
+            os.makedirs(os.path.dirname(LOG_FILE_PATH), exist_ok=True)
             # Open in append mode, create if doesn't exist (though __init__ should handle creation)
             with open(LOG_FILE_PATH, 'a', newline='') as csvfile:
                 writer = csv.writer(csvfile)
@@ -116,7 +134,8 @@ class FaceRecognitionPipeline:
 
     def _load_all_embeddings(self):
         """Loads all embeddings from the database directory."""
-        print("Loading all known face embeddings...")
+        # self.face_database_dir is now correctly resolved
+        print(f"Loading all known face embeddings from {self.face_database_dir}...")
         loaded_embeddings = []
         loaded_labels = []
         try:
