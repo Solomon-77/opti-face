@@ -8,7 +8,6 @@ src/backend/face_database/*
 uv.lock
 logs
 
-app.spec
 build
 dist
 face_database
