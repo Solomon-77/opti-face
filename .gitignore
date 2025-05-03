@@ -1,0 +1,8 @@
+**/__pycache__/
+checkpoints/*
+!checkpoints/.gitkeep
+face_database/*
+!face_database/.gitkeep
+
+.venv
+uv.lock
